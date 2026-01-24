@@ -89,24 +89,52 @@ export const AdminDashboard = () => {
     labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
     datasets: [
       {
-        label: 'Average Nitrogen',
+        label: 'Nitrogen',
         data: [45, 42, 38, 35, 32, 38],
         borderColor: 'hsl(var(--accent))',
-        backgroundColor: 'hsl(var(--accent) / 0.1)',
+        backgroundColor: 'Blue',
         tension: 0.4,
       },
       {
-        label: 'Average Phosphorus',
+        label: 'Phosphorus',
         data: [28, 26, 24, 22, 20, 23],
         borderColor: 'hsl(var(--warning))',
         backgroundColor: 'hsl(var(--warning) / 0.1)',
         tension: 0.4,
       },
       {
-        label: 'Average Potassium',
+        label: 'Potassium',
         data: [35, 33, 31, 29, 27, 30],
         borderColor: 'hsl(var(--primary))',
         backgroundColor: 'hsl(var(--primary) / 0.1)',
+        tension: 0.4,
+      },
+      {
+        label: 'pH',
+        data: [6.5, 6.4, 6.3, 6.2, 6.1, 6.3],
+        borderColor: 'hsl(var(--success))',
+        backgroundColor: 'hsl(var(--success) / 0.1)',
+        tension: 0.4,
+      },
+      {
+        label: 'Temperature (°C)',
+        data: [36, 25, 27, 47, 37, 17],
+        borderColor: 'hsl(var(--muted))',
+        backgroundColor: 'hsl(var(--muted) / 0.1)',
+        tension: 0.4,
+      },
+      {
+        label: 'Humidity (%)',
+        data: [70, 65, 75, 80, 60, 68],
+        borderColor: 'hsl(var(--foreground))',
+        backgroundColor: 'hsl(var(--foreground) / 0.1)',
+        tension: 0.4,
+      },
+      {
+        label: 'Salinity',
+        data: [120, 80, 100, 150, 90, 110],
+        borderColor: 'hsl(var(--border))',
+        backgroundColor: 'hsl(var(--border) / 0.1)',
         tension: 0.4,
       },
     ],
@@ -207,7 +235,7 @@ export const AdminDashboard = () => {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold bg-gradient-crop bg-clip-text text-transparent">
-                CropWise Admin
+                TANIM Admin
               </h1>
               <p className="text-muted-foreground mt-1">
                 Welcome back, {currentUser?.name}
@@ -293,7 +321,7 @@ export const AdminDashboard = () => {
         <Tabs defaultValue="overview" className="space-y-6">
           <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:grid-cols-5">
             <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="farms">Farms GIS</TabsTrigger>
+            <TabsTrigger value="farms">Farms</TabsTrigger>
             <TabsTrigger value="farmers">Farmers</TabsTrigger>
             <TabsTrigger value="rules">Crop Rules</TabsTrigger>
             <TabsTrigger value="data">Data Management</TabsTrigger>
@@ -730,10 +758,6 @@ export const AdminDashboard = () => {
 
                     <div className="p-4 bg-warning/10 border border-warning/20 rounded-lg">
                       <h4 className="font-medium mb-2 text-warning">Prototype Notice</h4>
-                      <p className="text-sm text-muted-foreground">
-                        This is a prototype using dummy data. All data resets on page refresh.
-                        No real databases or APIs are connected.
-                      </p>
                     </div>
                   </div>
                 </CardContent>

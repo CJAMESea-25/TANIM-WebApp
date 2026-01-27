@@ -29,6 +29,11 @@ export const LoginPage: React.FC = () => {
     });
   };
 
+  const demoSignUp = () => {
+    const creds = { username: t('demoAdminUsername'), password: t('demoAdminPassword') };
+    setAdminCredentials(creds);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-earth flex items-center justify-center p-4">
       <div className="w-full max-w-md">
@@ -111,8 +116,8 @@ export const LoginPage: React.FC = () => {
                   </div>
                 </div>
 
-                <Button variant="earth" size="sm" className="w-full" onClick={fillDemoCredentials}>
-                  Use Demo Admin Account
+                <Button variant="earth" size="sm" className="w-full" onClick={demoSignUp}>
+                  Sign Up
                 </Button>
               </div>
             </form>

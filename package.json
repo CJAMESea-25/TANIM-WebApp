@@ -1,6 +1,10 @@
 {
+  "scripts": {
+    "dev": "npm run dev --prefix apps/web",
+    "build": "npm run build --prefix apps/web"
+  },
   "dependencies": {
-    "@supabase/supabase-js": "^2.93.2",
+    "@supabase/supabase-js": "^2.99.0",
     "react-router-dom": "^7.13.0"
   }
 }

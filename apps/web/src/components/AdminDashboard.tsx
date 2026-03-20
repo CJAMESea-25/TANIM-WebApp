@@ -1,5 +1,11 @@
 import React, { useEffect, useRef } from 'react';
 import { useCropStore } from '@/stores/cropStore';
+import { useFarms } from '@/hooks/useFarms';
+import { useFarmers } from '@/hooks/useFarmers';
+import { useGlobalAuth } from '@/hooks/useGlobalAuth';
+import { useSoilTests } from '@/hooks/useSoilTests';
+import { useSystemActivity } from '@/hooks/useSystemActivity';
+import { supabase } from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -28,6 +34,12 @@ import {
   Users,
   MapPin,
   Settings,
+  Thermometer,
+  CloudLightning,
+  Droplets,
+  Wind,
+  Tractor,
+  Calendar,
   TrendingUp,
   AlertCircle,
   Plus,
@@ -43,7 +55,7 @@ import {
   Clock,
   LogOut
 } from 'lucide-react';
-import { FarmMap } from './FarmMap';
+import { FarmMap } from './maps/FarmMap';
 import { LanguageSwitcher } from './LanguageSwitcher';
 
 ChartJS.register(
@@ -59,23 +71,29 @@ ChartJS.register(
 );
 
 export const AdminDashboard = () => {
+  const { data: farms = [], isLoading: isLoadingFarms } = useFarms() as any;
+  const { data: farmers = [], isLoading: isLoadingFarmers } = useFarmers() as any;
+  const { data: dbSoilTests = [] } = useSoilTests() as any;
+  const { data: dbSystemActivity = [] } = useSystemActivity() as any;
+  const { profile, logout } = useGlobalAuth();
+
   const {
-    farms,
-    farmers,
     soilData,
     weatherData,
     cropRules,
-    auth,
     updateCropRule,
     addCropRule,
     deleteCropRule,
     updateSoilData,
     generateWeatherData,
-    logout,
     t
   } = useCropStore();
 
-  const currentUser = auth.currentUser;
+  const handleLogout = async () => {
+    logout();
+  };
+
+  const currentUser = profile;
 
   const [newRule, setNewRule] = React.useState({
     currentCrop: '',
@@ -84,77 +102,55 @@ export const AdminDashboard = () => {
     condition: '',
   });
 
-  // Generate dummy historical data for charts
+  // Calculate true averages from the actual retrieved soil data from supabase
+  const avgN = dbSoilTests.length ? dbSoilTests.reduce((acc: number, test: any) => acc + Number(test.nitrogen || 0), 0) / dbSoilTests.length : 0;
+  const avgP = dbSoilTests.length ? dbSoilTests.reduce((acc: number, test: any) => acc + Number(test.phosphorus || 0), 0) / dbSoilTests.length : 0;
+  const avgK = dbSoilTests.length ? dbSoilTests.reduce((acc: number, test: any) => acc + Number(test.potassium || 0), 0) / dbSoilTests.length : 0;
+  const avgPH = dbSoilTests.length ? dbSoilTests.reduce((acc: number, test: any) => acc + Number(test.ph || test.pH || 0), 0) / dbSoilTests.length : 0;
+  
+  // Calculate salinity, moisture, and temperature
+  const avgSalinity = dbSoilTests.length ? dbSoilTests.reduce((acc: number, test: any) => acc + Number(test.salinity || 0), 0) / dbSoilTests.length : 0;
+  const avgMoisture = dbSoilTests.length ? dbSoilTests.reduce((acc: number, test: any) => acc + Number(test.soil_moisture || 0), 0) / dbSoilTests.length : 0;
+  const avgTemp = dbSoilTests.length ? dbSoilTests.reduce((acc: number, test: any) => acc + Number(test.temperature || 0), 0) / dbSoilTests.length : 0;
+
   const soilHealthTrends = {
-    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+    labels: ['Nitrogen', 'Phosphorus', 'Potassium', 'pH (x10)', 'Salinity', 'Moisture', 'Temp (°C)'], // Scaled pH so it shows up on the same graph visually
     datasets: [
       {
-        label: 'Nitrogen',
-        data: [45, 42, 38, 35, 32, 38],
-        borderColor: 'hsl(var(--accent))',
-        backgroundColor: 'Blue',
-        tension: 0.4,
-      },
-      {
-        label: 'Phosphorus',
-        data: [28, 26, 24, 22, 20, 23],
-        borderColor: 'hsl(var(--warning))',
-        backgroundColor: 'hsl(var(--warning) / 0.1)',
-        tension: 0.4,
-      },
-      {
-        label: 'Potassium',
-        data: [35, 33, 31, 29, 27, 30],
-        borderColor: 'hsl(var(--primary))',
-        backgroundColor: 'hsl(var(--primary) / 0.1)',
-        tension: 0.4,
-      },
-      {
-        label: 'pH',
-        data: [6.5, 6.4, 6.3, 6.2, 6.1, 6.3],
-        borderColor: 'hsl(var(--success))',
-        backgroundColor: 'hsl(var(--success) / 0.1)',
-        tension: 0.4,
-      },
-      {
-        label: 'Temperature (°C)',
-        data: [36, 25, 27, 47, 37, 17],
-        borderColor: 'hsl(var(--muted))',
-        backgroundColor: 'hsl(var(--muted) / 0.1)',
-        tension: 0.4,
-      },
-      {
-        label: 'Humidity (%)',
-        data: [70, 65, 75, 80, 60, 68],
-        borderColor: 'hsl(var(--foreground))',
-        backgroundColor: 'hsl(var(--foreground) / 0.1)',
-        tension: 0.4,
-      },
-      {
-        label: 'Salinity',
-        data: [120, 80, 100, 150, 90, 110],
-        borderColor: 'hsl(var(--border))',
-        backgroundColor: 'hsl(var(--border) / 0.1)',
-        tension: 0.4,
-      },
+        label: 'Average Soil Nutrient Levels Across All Tested Farms',
+        data: [avgN, avgP, avgK, avgPH * 10, avgSalinity, avgMoisture, avgTemp],
+        backgroundColor: [
+          'hsl(var(--accent))',
+          'hsl(var(--warning))',
+          'hsl(var(--primary))',
+          'hsl(var(--success))',
+          'hsl(var(--muted))',
+          'hsl(var(--destructive))', // You can add your own custom hsl vars if these don't exist
+          'hsl(var(--secondary))',
+        ],
+        borderWidth: 1,
+      }
     ],
   };
 
+  // Group farms by actual soil types reported in the database
+  const soilTypeCounts: Record<string, number> = {};
+  farms.forEach((farm: any) => {
+    const type = farm.soilType || 'Unknown';
+    soilTypeCounts[type] = (soilTypeCounts[type] || 0) + 1;
+  });
+
   const farmDistribution = {
-    labels: ['Clay', 'Loam', 'Sandy', 'Silt'],
+    labels: Object.keys(soilTypeCounts).map(t => t.charAt(0).toUpperCase() + t.slice(1)),
     datasets: [
       {
-        data: [
-          farms.filter(f => f.soilType === 'clay').length,
-          farms.filter(f => f.soilType === 'loam').length,
-          farms.filter(f => f.soilType === 'sandy').length,
-          farms.filter(f => f.soilType === 'silt').length,
-        ],
+        data: Object.values(soilTypeCounts),
         backgroundColor: [
           'hsl(var(--primary))',
           'hsl(var(--accent))',
           'hsl(var(--warning))',
           'hsl(var(--success))',
+          'hsl(var(--muted))'
         ],
         borderWidth: 0,
       },
@@ -215,7 +211,7 @@ export const AdminDashboard = () => {
       cropRules,
       exportDate: new Date().toISOString(),
     };
-    
+
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -238,7 +234,7 @@ export const AdminDashboard = () => {
                 TANIM Admin
               </h1>
               <p className="text-muted-foreground mt-1">
-                Welcome back, {currentUser?.name}
+                Welcome back, {currentUser?.role === 'admin' ? 'Administrator' : 'Farmer'}
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -250,7 +246,7 @@ export const AdminDashboard = () => {
                 <Download className="h-4 w-4" />
                 Export Data
               </Button>
-              <Button variant="ghost" onClick={logout}>
+              <Button variant="ghost" onClick={handleLogout}>
                 Logout
               </Button>
             </div>
@@ -303,10 +299,7 @@ export const AdminDashboard = () => {
                 <div>
                   <p className="text-sm text-muted-foreground">Avg Soil Health</p>
                   <p className="text-2xl font-bold">
-                    {Math.round(
-                      Object.values(soilData).reduce((acc, soil) => acc + soil.nitrogen, 0) /
-                      Object.values(soilData).length
-                    )}%
+                    {Math.round(avgN || 0)}%
                   </p>
                 </div>
                 <TrendingUp className="h-8 w-8 text-success" />
@@ -342,7 +335,7 @@ export const AdminDashboard = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="h-64">
-                    <Line data={soilHealthTrends} options={chartOptions} />
+                    <Bar data={soilHealthTrends} options={chartOptions} />
                   </div>
                 </CardContent>
               </Card>
@@ -401,37 +394,42 @@ export const AdminDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {farmers.map((farmer) => (
-                    <Card key={farmer.id} className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="font-medium">{farmer.name}</h3>
-                          <p className="text-sm text-muted-foreground">{farmer.phone}</p>
-                          <div className="flex items-center gap-2 mt-2">
-                            <Badge variant="outline">
-                              {farmer.farms.length} farms
-                            </Badge>
-                            <Badge variant="secondary">
-                              {farmer.language.toUpperCase()}
-                            </Badge>
+                  {farmers.map((farmer: any) => {
+                    // Match the foreign key `farmer_id` on the `farm` table to the `farmer_id` on the `farmer` table
+                    const assignedFarms = farms.filter((f: any) => f.farmer_id === farmer.farmer_id || f.farmer_id === farmer.id);
+                    return (
+                      <Card key={farmer.farmer_id || farmer.id} className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h3 className="font-medium text-lg">{farmer.username || farmer.name}</h3>
+                            <p className="text-sm text-muted-foreground">{farmer.phone || 'No phone'}</p>
+                            <div className="flex items-center gap-2 mt-2">
+                              <Badge variant="outline">
+                                {assignedFarms.length} farms
+                              </Badge>
+                              <Badge variant="secondary">
+                                {farmer.language?.toUpperCase() || 'EN'}
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm text-muted-foreground font-medium mb-1">Assigned Farms:</p>
+                            <div className="space-y-1">
+                              {assignedFarms.length === 0 ? (
+                                <div className="text-xs text-muted-foreground italic">None assigned</div>
+                              ) : (
+                                assignedFarms.map((farm: any) => (
+                                  <div key={farm.farm_id || farm.id} className="text-xs bg-muted p-1 rounded px-2">
+                                    {farm.farm_name || farm.name} ({farm.farm_measurement || farm.size || 0} hectares)
+                                  </div>
+                                ))
+                              )}
+                            </div>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm text-muted-foreground">Assigned Farms:</p>
-                          <div className="space-y-1">
-                            {farmer.farms.map((farmId) => {
-                              const farm = farms.find(f => f.id === farmId);
-                              return farm ? (
-                                <div key={farmId} className="text-xs">
-                                  {farm.name} ({farm.size} hectares)
-                                </div>
-                              ) : null;
-                            })}
-                          </div>
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
+                      </Card>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
@@ -575,8 +573,8 @@ export const AdminDashboard = () => {
                           <TableCell>
                             <div className="flex items-center gap-2">
                               <div className="w-12 bg-gray-200 rounded-full h-2">
-                                <div 
-                                  className="bg-green-600 h-2 rounded-full" 
+                                <div
+                                  className="bg-green-600 h-2 rounded-full"
                                   style={{ width: `${Math.random() * 30 + 70}%` }}
                                 ></div>
                               </div>
@@ -678,7 +676,7 @@ export const AdminDashboard = () => {
 
           <TabsContent value="data" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Real-time Soil Data */}
+              {/* Real-time Soil Data (Now from Supabase) */}
               <Card className="shadow-earth">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -687,78 +685,82 @@ export const AdminDashboard = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {farms.map((farm) => {
-                      const soil = soilData[farm.id];
-                      return (
-                        <Card key={farm.id} className="p-4">
-                          <div className="flex items-center justify-between mb-3">
-                            <h4 className="font-medium">{farm.name}</h4>
-                            <Button
-                              size="sm"
-                              variant="earth"
-                              onClick={() => updateSoilData(farm.id)}
-                            >
-                              <RefreshCw className="h-3 w-3" />
-                            </Button>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 text-sm">
-                            <div>N: {soil.nitrogen}%</div>
-                            <div>P: {soil.phosphorus}%</div>
-                            <div>K: {soil.potassium}%</div>
-                            <div>pH: {soil.pH}</div>
-                          </div>
-                          <div className="mt-2 text-xs text-muted-foreground">
-                            Updated: {soil.lastUpdated.toLocaleTimeString()}
-                          </div>
-                        </Card>
-                      );
-                    })}
+                  <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+                    {dbSoilTests.length === 0 ? (
+                      <div className="text-center p-4 text-muted-foreground italic">No soil tests recorded yet.</div>
+                    ) : (
+                      dbSoilTests.map((test: any) => {
+                        const farmName = farms.find((f: any) => f.farm_id === test.farm_id || f.id === test.farm_id)?.farm_name || 'Unknown Farm';
+                        return (
+                          <Card key={test.test_id || test.id} className="p-4 border-l-4 border-l-primary">
+                            <div className="flex items-center justify-between mb-3">
+                              <h4 className="font-medium">{farmName}</h4>
+                              <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+                                ID: {String(test.test_id || test.id).substring(0, 8)}...
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-sm bg-muted/50 p-2 rounded">
+                              <div><span className="font-medium text-primary">N:</span> {test.nitrogen}%</div>
+                              <div><span className="font-medium text-accent">P:</span> {test.phosphorus}%</div>
+                              <div><span className="font-medium text-warning">K:</span> {test.potassium}%</div>
+                              <div><span className="font-medium text-success">pH:</span> {test.ph || test.pH}</div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-xs mt-2">
+                              <div><Thermometer className="inline w-3 h-3 mr-1" /> {test.temperature}°C</div>
+                              <div className="text-right">Moisture: {test.soil_moisture}%</div>
+                            </div>
+                            <div className="mt-3 text-xs text-muted-foreground border-t pt-2">
+                              Test Date: {new Date(test.created_at).toLocaleString()}
+                            </div>
+                          </Card>
+                        );
+                      })
+                    )}
                   </div>
                 </CardContent>
               </Card>
 
-              {/* System Information */}
+              {/* System Activity (From tanim_system) */}
               <Card className="shadow-earth">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <AlertCircle className="h-5 w-5 text-warning" />
-                    System Information
+                    Cropping System History
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    <div className="p-4 bg-muted rounded-lg">
-                      <h4 className="font-medium mb-2">Data Sources</h4>
-                      <ul className="text-sm space-y-1 text-muted-foreground">
-                        <li>• Soil Health: Simulated random values</li>
-                        <li>• Weather: Random forecast generator</li>
-                        <li>• Crop Pairs: Hardcoded knowledge base</li>
-                        <li>• Farm Boundaries: Static polygon data</li>
-                      </ul>
-                    </div>
-                    
-                    <div className="p-4 bg-muted rounded-lg">
-                      <h4 className="font-medium mb-2">System Status</h4>
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm">Data Refresh Rate</span>
-                          <Badge variant="outline">Manual</Badge>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm">Storage</span>
-                          <Badge variant="outline">In-Memory</Badge>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm">Last Export</span>
-                          <Badge variant="outline">Never</Badge>
-                        </div>
-                      </div>
-                    </div>
+                  <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+                    {dbSystemActivity.length === 0 ? (
+                      <div className="text-center p-4 text-muted-foreground italic">No system activity logged yet.</div>
+                    ) : (
+                      dbSystemActivity.map((activity: any) => {
+                        const farmName = farms.find((f: any) => f.farm_id === activity.farm_id || f.id === activity.farm_id)?.farm_name || 'Unknown Farm';
+                        return (
+                          <div key={activity.system_id || activity.id} className="p-4 bg-muted rounded-lg border border-border">
+                            <h4 className="font-medium mb-1 text-primary">{activity.crop_name || 'Unknown Crop'} System</h4>
+                            <p className="text-sm mb-2 text-muted-foreground">Farm: {farmName}</p>
 
-                    <div className="p-4 bg-warning/10 border border-warning/20 rounded-lg">
-                      <h4 className="font-medium mb-2 text-warning">Prototype Notice</h4>
-                    </div>
+                            <div className="grid grid-cols-2 gap-2 mb-2">
+                              <div className="flex items-center justify-between bg-background p-2 rounded border border-border">
+                                <span className="text-xs text-muted-foreground">Status</span>
+                                <Badge variant={activity.status === 'Active' ? 'default' : 'secondary'} className="text-[10px]">
+                                  {activity.status}
+                                </Badge>
+                              </div>
+                              <div className="flex items-center justify-between bg-background p-2 rounded border border-border">
+                                <span className="text-xs text-muted-foreground">Expected Yield</span>
+                                <span className="text-xs font-medium text-accent">{activity.expected_yield}</span>
+                              </div>
+                            </div>
+
+                            <div className="text-xs text-muted-foreground flex justify-between mt-2 pt-2 border-t border-border/50">
+                              <span>Planted: {new Date(activity.planting_date).toLocaleDateString()}</span>
+                              <span>Harvest: {new Date(activity.harvesting_date).toLocaleDateString()}</span>
+                            </div>
+                          </div>
+                        )
+                      })
+                    )}
                   </div>
                 </CardContent>
               </Card>

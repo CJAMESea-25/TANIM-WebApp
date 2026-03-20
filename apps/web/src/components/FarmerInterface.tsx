@@ -7,11 +7,14 @@ import { Separator } from '@/components/ui/separator';
 import { CropNeighborFinder } from '@/components/CropNeighborFinder';
 import { CropImage } from '@/components/CropImage';
 import { LanguageSwitcher } from './LanguageSwitcher';
-import { 
-  Sprout, 
-  Calendar, 
-  TrendingUp, 
-  AlertTriangle, 
+import { useGlobalAuth } from '@/hooks/useGlobalAuth';
+import { useFarms } from '@/hooks/useFarms';
+import { supabase } from '@/lib/supabaseClient';
+import {
+  Sprout,
+  Calendar,
+  TrendingUp,
+  AlertTriangle,
   Volume2,
   MapPin,
   Thermometer,
@@ -19,21 +22,25 @@ import {
 } from 'lucide-react';
 
 export const FarmerInterface = () => {
+  const { profile, logout } = useGlobalAuth();
+  const { data: farms = [] } = useFarms() as any;
+
   const {
-    farms,
-    auth,
     selectedFarm,
     setSelectedFarm,
     recommendations,
     generateRecommendations,
     weatherData,
     soilData,
-    logout,
     t
   } = useCropStore();
 
-  const currentUser = auth.currentUser;
-  const userFarms = currentUser?.farmIds ? farms.filter(f => currentUser.farmIds!.includes(f.id)) : [];
+  const handleLogout = async () => {
+    logout();
+  };
+
+  const currentUser = profile;
+  const userFarms = profile ? farms.filter((f: any) => f.owner_id === profile.id) : [];
   const currentFarm = farms.find(f => f.id === selectedFarm);
   const currentSoil = selectedFarm ? soilData[selectedFarm] : null;
 
@@ -85,10 +92,10 @@ export const FarmerInterface = () => {
                 <h1 className="text-2xl font-bold bg-gradient-crop bg-clip-text text-transparent">
                   CropWise
                 </h1>
-                <p className="text-sm text-muted-foreground">Welcome, {currentUser?.name}</p>
+                <p className="text-sm text-muted-foreground">Welcome, Farmer</p>
               </div>
             </div>
-            <Button variant="ghost" size="sm" onClick={logout}>
+            <Button variant="ghost" size="sm" onClick={handleLogout}>
               Logout
             </Button>
           </div>
@@ -130,9 +137,9 @@ export const FarmerInterface = () => {
                       <div className="flex-1">
                         <div className="font-medium">{farm.name}</div>
                         <div className="text-xs opacity-80">
-                          {farm.size} {t('hectares')} • {t(farm.soilType)} {t('soilType').toLowerCase()}
+                          {farm.size || 0} {t('hectares')} • {t(farm.soilType || 'loam')} {t('soilType').toLowerCase()}
                         </div>
-                        <div className="text-xs opacity-70">{farm.location}</div>
+                        <div className="text-xs opacity-70">{farm.location || 'Unknown Location'}</div>
                       </div>
                     </Button>
                   ))}
@@ -157,11 +164,11 @@ export const FarmerInterface = () => {
                       {weatherData.slice(0, 5).map((weather, index) => (
                         <div key={index} className="text-center">
                           <div className="text-xs text-muted-foreground mb-1">
-                            {weather.day === 'Today' ? t('today') : 
-                             weather.day === 'Tomorrow' ? t('tomorrow') :
-                             weather.day === 'Wednesday' ? t('wednesday') :
-                             weather.day === 'Thursday' ? t('thursday') :
-                             weather.day === 'Friday' ? t('friday') : weather.day.slice(0, 3)}
+                            {weather.day === 'Today' ? t('today') :
+                              weather.day === 'Tomorrow' ? t('tomorrow') :
+                                weather.day === 'Wednesday' ? t('wednesday') :
+                                  weather.day === 'Thursday' ? t('thursday') :
+                                    weather.day === 'Friday' ? t('friday') : weather.day.slice(0, 3)}
                           </div>
                           <div className="text-lg mb-1">{weather.icon}</div>
                           <div className="text-xs font-medium">{weather.temperature}°C</div>
@@ -192,7 +199,7 @@ export const FarmerInterface = () => {
                           <span className="text-sm">{t('nitrogen')} (N)</span>
                           <div className="flex items-center gap-2">
                             <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
-                              <div 
+                              <div
                                 className="h-full bg-accent transition-all duration-500"
                                 style={{ width: `${currentSoil.nitrogen}%` }}
                               />
@@ -200,12 +207,12 @@ export const FarmerInterface = () => {
                             <span className="text-sm font-medium">{currentSoil.nitrogen}%</span>
                           </div>
                         </div>
-                        
+
                         <div className="flex items-center justify-between">
                           <span className="text-sm">{t('phosphorus')} (P)</span>
                           <div className="flex items-center gap-2">
                             <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
-                              <div 
+                              <div
                                 className="h-full bg-warning transition-all duration-500"
                                 style={{ width: `${(currentSoil.phosphorus / 50) * 100}%` }}
                               />
@@ -213,12 +220,12 @@ export const FarmerInterface = () => {
                             <span className="text-sm font-medium">{currentSoil.phosphorus}%</span>
                           </div>
                         </div>
-                        
+
                         <div className="flex items-center justify-between">
                           <span className="text-sm">{t('potassium')} (K)</span>
                           <div className="flex items-center gap-2">
                             <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
-                              <div 
+                              <div
                                 className="h-full bg-primary transition-all duration-500"
                                 style={{ width: `${(currentSoil.potassium / 50) * 100}%` }}
                               />
@@ -228,7 +235,7 @@ export const FarmerInterface = () => {
                         </div>
 
                         <Separator />
-                        
+
                         <div className="flex items-center justify-between">
                           <span className="text-sm">{t('pH')}</span>
                           <Badge variant="outline" className="text-sm">
@@ -237,7 +244,7 @@ export const FarmerInterface = () => {
                         </div>
 
                         <div className="flex items-center justify-center">
-                          <Badge 
+                          <Badge
                             className={`${getSoilHealthStatus(currentSoil.nitrogen).color} text-sm`}
                           >
                             {getSoilHealthStatus(currentSoil.nitrogen).label}
@@ -257,7 +264,7 @@ export const FarmerInterface = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-1 gap-3">
-                      {currentFarm.currentCrops.map((crop, index) => (
+                      {(currentFarm.currentCrops || []).map((crop: any, index: number) => (
                         <CropImage
                           key={index}
                           cropName={crop}
@@ -286,8 +293,8 @@ export const FarmerInterface = () => {
                     {recommendations.length === 0 ? (
                       <div className="text-center py-8 text-muted-foreground">
                         <Sprout className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                         <p>{t('noRecommendations')}</p>
-                         <p className="text-sm">{t('excellent')}!</p>
+                        <p>{t('noRecommendations')}</p>
+                        <p className="text-sm">{t('excellent')}!</p>
                       </div>
                     ) : (
                       recommendations.map((rec) => (
@@ -296,7 +303,7 @@ export const FarmerInterface = () => {
                             <div className="flex items-start justify-between mb-2">
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-1">
-                                  <Badge 
+                                  <Badge
                                     variant={getUrgencyColor(rec.urgency) as any}
                                     className="text-xs"
                                   >
@@ -328,7 +335,7 @@ export const FarmerInterface = () => {
                                 <Volume2 className="h-4 w-4" />
                               </Button>
                             </div>
-                            
+
                             <div className="space-y-1">
                               <p className="text-xs font-medium text-muted-foreground">{t('benefits')}:</p>
                               <div className="flex flex-wrap gap-1">

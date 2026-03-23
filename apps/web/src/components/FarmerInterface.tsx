@@ -9,7 +9,6 @@ import { CropImage } from '@/components/CropImage';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { useGlobalAuth } from '@/hooks/useGlobalAuth';
 import { useFarms } from '@/hooks/useFarms';
-import { supabase } from '@/lib/supabaseClient';
 import {
   Sprout,
   Calendar,

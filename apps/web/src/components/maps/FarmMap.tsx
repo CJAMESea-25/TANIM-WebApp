@@ -6,7 +6,14 @@ import { useFarms } from '@/hooks/useFarms';
 import { useSoilTests } from '@/hooks/useSoilTests';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Eye } from 'lucide-react';
+import { MapPin, Eye, Thermometer } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 // Fix for default markers in Leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -25,6 +32,14 @@ export const FarmMap = () => {
   const { data: dbSoilTests = [] } = useSoilTests() as any;
 
   const colors = ['#22c55e', '#3b82f6', '#f59e0b', '#8b5cf6', '#ef4444', '#14b8a6', '#f43f5e'];
+
+  const [selectedFarm, setSelectedFarm] = React.useState<any>(null);
+  const selectedFarmTests = useMemo(() => {
+    if (!selectedFarm) return [];
+    return dbSoilTests
+      .filter((t: any) => t.farm_id === selectedFarm.id || t.farm_id === selectedFarm.farm_id)
+      .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [selectedFarm, dbSoilTests]);
 
   // Map real farms to map locations, generating fallback coordinates if none exist
   const farmLocations = useMemo(() => {
@@ -120,8 +135,9 @@ export const FarmMap = () => {
                   <div style="margin-bottom: 2px;"><strong>P:</strong> ${soil.phosphorus}%</div>
                   <div style="margin-bottom: 2px;"><strong>K:</strong> ${soil.potassium}%</div>
                   <div style="margin-bottom: 2px;"><strong>pH:</strong> ${soil.ph || soil.pH}</div>
+                  <div style="margin-bottom: 2px;"><strong>Class:</strong> ${soil.npk_classification || soil.classification || 'UNKNOWN'}</div>
                   <div style="margin-bottom: 2px;"><strong>Salinity:</strong> ${soil.salinity}%</div>
-                  <div style="margin-bottom: 2px;"><strong>Moisture:</strong> ${soil.soil_moisture}%</div>
+                  <div style="margin-bottom: 2px;"><strong>Moisture:</strong> ${soil.soil_moisture || soil.moisture || 0}%</div>
                   <div style="margin-bottom: 2px;"><strong>Temp:</strong> ${soil.temperature}°C</div>
                 </div>
               ` : ''}
@@ -178,7 +194,12 @@ export const FarmMap = () => {
               const soil = farm ? dbSoilTests.find((t: any) => t.farm_id === farm.id || t.farm_id === farm.farm_id) : null;
 
               return (
-                <Card key={loc.id} className="p-4 border-l-4" style={{ borderLeftColor: loc.color }}>
+                <Card 
+                  key={loc.id} 
+                  className="p-4 border-l-4 cursor-pointer hover:bg-muted/50 transition-colors" 
+                  style={{ borderLeftColor: loc.color }}
+                  onClick={() => setSelectedFarm(farm || loc.originalFarm)}
+                >
                   <div className="flex items-start justify-between mb-3">
                     <div>
                       <h4 className="font-medium text-lg leading-tight">{loc.name}</h4>
@@ -208,9 +229,9 @@ export const FarmMap = () => {
                           <div><span className="font-semibold text-warning">K:</span> {soil.potassium}%</div>
                           <div><span className="font-semibold text-success">pH:</span> {soil.ph || soil.pH}</div>
                           <div className="col-span-4 mt-1 pt-1 border-t border-border flex justify-between px-1">
-                             <span><span className="font-semibold">Salinity:</span> {soil.salinity}%</span>
-                             <span><span className="font-semibold">Moisture:</span> {soil.soil_moisture}%</span>
-                             <span><span className="font-semibold">Temp:</span> {soil.temperature}°C</span>
+                             <span className="flex items-center"><span className="font-semibold text-muted-foreground mr-1">Class:</span> <Badge variant="outline" className="text-[10px] uppercase font-bold">{soil.npk_classification || soil.classification || 'UNKNOWN'}</Badge></span>
+                             <span><span className="font-semibold text-muted-foreground mr-1">Moist:</span> {soil.soil_moisture || soil.moisture || 0}%</span>
+                             <span><span className="font-semibold text-muted-foreground mr-1">Temp:</span> {soil.temperature}°C</span>
                           </div>
                         </div>
                       )}
@@ -292,6 +313,45 @@ export const FarmMap = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Soil Test History Dialog */}
+      <Dialog open={!!selectedFarm} onOpenChange={(open) => !open && setSelectedFarm(null)}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Soil Test History - {selectedFarm?.farm_name || selectedFarm?.name || 'Unknown Farm'}</DialogTitle>
+          </DialogHeader>
+          <div className="mt-4">
+            {selectedFarmTests.length === 0 ? (
+               <p className="text-muted-foreground text-center p-8 bg-muted/50 rounded-lg border border-dashed border-border">No soil tests found for this farm.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                     <TableHead>Date</TableHead>
+                     <TableHead>Classification</TableHead>
+                     <TableHead>N-P-K</TableHead>
+                     <TableHead>Moisture</TableHead>
+                     <TableHead>Temp</TableHead>
+                     <TableHead>pH</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {selectedFarmTests.map((t: any) => (
+                    <TableRow key={t.test_id || t.id}>
+                      <TableCell className="whitespace-nowrap">{new Date(t.created_at).toLocaleDateString()}</TableCell>
+                      <TableCell><Badge variant="outline" className="uppercase text-[10px] whitespace-nowrap">{t.npk_classification || t.classification || 'UNKNOWN'}</Badge></TableCell>
+                      <TableCell className="whitespace-nowrap text-muted-foreground">{t.nitrogen}-{t.phosphorus}-{t.potassium}</TableCell>
+                      <TableCell className="font-medium">{t.soil_moisture || t.moisture || 0}%</TableCell>
+                      <TableCell>{t.temperature}°C</TableCell>
+                      <TableCell>{t.ph || t.pH}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

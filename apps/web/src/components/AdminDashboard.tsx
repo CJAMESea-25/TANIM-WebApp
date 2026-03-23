@@ -5,7 +5,10 @@ import { useFarmers } from '@/hooks/useFarmers';
 import { useGlobalAuth } from '@/hooks/useGlobalAuth';
 import { useSoilTests } from '@/hooks/useSoilTests';
 import { useSystemActivity } from '@/hooks/useSystemActivity';
-import { supabase } from '@/lib/supabaseClient';
+import { useQueryClient } from '@tanstack/react-query';
+import { createFarmer } from '@/services/farmerService';
+import { createFarm } from '@/services/farmService';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -76,6 +79,66 @@ export const AdminDashboard = () => {
   const { data: dbSoilTests = [] } = useSoilTests() as any;
   const { data: dbSystemActivity = [] } = useSystemActivity() as any;
   const { profile, logout } = useGlobalAuth();
+  const queryClient = useQueryClient();
+
+  const [isAddFarmerOpen, setIsAddFarmerOpen] = React.useState(false);
+  const [newFarmer, setNewFarmer] = React.useState({ username: '', phone: '', password: '', role: 'farmer', language: 'en', farm_name: '', farm_measurement: '', soilType: 'loam' });
+  const [isAddingFarmer, setIsAddingFarmer] = React.useState(false);
+
+  const [isAddFarmOpen, setIsAddFarmOpen] = React.useState(false);
+  const [selectedFarmerId, setSelectedFarmerId] = React.useState<string | null>(null);
+  const [newFarm, setNewFarm] = React.useState({ farm_name: '', farm_measurement: '', soilType: 'loam' });
+  const [isAddingFarm, setIsAddingFarm] = React.useState(false);
+
+  const handleAddFarmerSubmit = async () => {
+    if (!newFarmer.username || !newFarmer.password) return;
+    try {
+      setIsAddingFarmer(true);
+      const createdFarmer = await createFarmer({
+        username: newFarmer.username,
+        password: newFarmer.password,
+      });
+      // If farm details were provided, create the farm linked to this new farmer
+      if (newFarmer.farm_name && createdFarmer) {
+        const farmerId = createdFarmer.farmer_id || createdFarmer.id;
+        await createFarm({
+          farm_name: newFarmer.farm_name,
+          farm_measurement: Number(newFarmer.farm_measurement) || 0,
+          soilType: newFarmer.soilType,
+          farmer_id: farmerId,
+        });
+        queryClient.invalidateQueries({ queryKey: ['farms'] });
+      }
+      setIsAddFarmerOpen(false);
+      setNewFarmer({ username: '', phone: '', password: '', role: 'farmer', language: 'en', farm_name: '', farm_measurement: '', soilType: 'loam' });
+      queryClient.invalidateQueries({ queryKey: ['farmers'] });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsAddingFarmer(false);
+    }
+  };
+
+  const handleAddFarmSubmit = async () => {
+    if (!newFarm.farm_name || !selectedFarmerId) return;
+    try {
+      setIsAddingFarm(true);
+      await createFarm({
+        farm_name: newFarm.farm_name,
+        farm_measurement: Number(newFarm.farm_measurement),
+        soilType: newFarm.soilType,
+        farmer_id: selectedFarmerId
+      });
+      setIsAddFarmOpen(false);
+      setSelectedFarmerId(null);
+      setNewFarm({ farm_name: '', farm_measurement: '', soilType: 'loam' });
+      queryClient.invalidateQueries({ queryKey: ['farms'] });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsAddingFarm(false);
+    }
+  };
 
   const {
     soilData,
@@ -95,6 +158,37 @@ export const AdminDashboard = () => {
 
   const currentUser = profile;
 
+  const [liveWeather, setLiveWeather] = React.useState<any[]>([]);
+
+  React.useEffect(() => {
+    const fetchWeather = async () => {
+      try {
+        const res = await fetch("https://api.open-meteo.com/v1/forecast?latitude=8.4542&longitude=124.6319&daily=weathercode,temperature_2m_max,temperature_2m_min,relative_humidity_2m_max&timezone=Asia/Manila");
+        const data = await res.json();
+        const daily = data.daily;
+        if (!daily) return;
+        const formatted = daily.time.slice(0, 5).map((time: string, i: number) => {
+          const date = new Date(time);
+          const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+          let code = daily.weathercode[i];
+          let condition = 'Clear'; let icon = '☀️';
+          if (code >= 1 && code <= 3) { condition = 'Cloudy'; icon = '⛅'; }
+          else if (code >= 45 && code <= 48) { condition = 'Foggy'; icon = '🌫️'; }
+          else if (code >= 51 && code <= 67) { condition = 'Rainy'; icon = '🌧️'; }
+          else if (code >= 71 && code <= 77) { condition = 'Snowy'; icon = '❄️'; }
+          else if (code >= 80 && code <= 82) { condition = 'Showers'; icon = '🌦️'; }
+          else if (code >= 95) { condition = 'Storm'; icon = '⛈️'; }
+          const tempMax = Math.round(daily.temperature_2m_max[i]);
+          const tempMin = Math.round(daily.temperature_2m_min[i]);
+          const humidity = daily.relative_humidity_2m_max ? Math.round(daily.relative_humidity_2m_max[i]) : 65;
+          return { day: i === 0 ? 'Today' : dayName, condition, temperature: `${tempMin}-${tempMax}`, humidity, icon };
+        });
+        setLiveWeather(formatted);
+      } catch (err) { console.error(err); }
+    };
+    fetchWeather();
+  }, []);
+
   const [newRule, setNewRule] = React.useState({
     currentCrop: '',
     recommendedCrop: '',
@@ -107,7 +201,7 @@ export const AdminDashboard = () => {
   const avgP = dbSoilTests.length ? dbSoilTests.reduce((acc: number, test: any) => acc + Number(test.phosphorus || 0), 0) / dbSoilTests.length : 0;
   const avgK = dbSoilTests.length ? dbSoilTests.reduce((acc: number, test: any) => acc + Number(test.potassium || 0), 0) / dbSoilTests.length : 0;
   const avgPH = dbSoilTests.length ? dbSoilTests.reduce((acc: number, test: any) => acc + Number(test.ph || test.pH || 0), 0) / dbSoilTests.length : 0;
-  
+
   // Calculate salinity, moisture, and temperature
   const avgSalinity = dbSoilTests.length ? dbSoilTests.reduce((acc: number, test: any) => acc + Number(test.salinity || 0), 0) / dbSoilTests.length : 0;
   const avgMoisture = dbSoilTests.length ? dbSoilTests.reduce((acc: number, test: any) => acc + Number(test.soil_moisture || 0), 0) / dbSoilTests.length : 0;
@@ -316,8 +410,8 @@ export const AdminDashboard = () => {
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="farms">Farms</TabsTrigger>
             <TabsTrigger value="farmers">Farmers</TabsTrigger>
-            <TabsTrigger value="rules">Crop Rules</TabsTrigger>
-            <TabsTrigger value="data">Data Management</TabsTrigger>
+            <TabsTrigger value="data">Crop Management</TabsTrigger>
+            <TabsTrigger value="fertilizer">Fertilizer Management</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -366,7 +460,7 @@ export const AdminDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                  {weatherData.map((weather, index) => (
+                  {(liveWeather.length > 0 ? liveWeather : weatherData).map((weather, index) => (
                     <div key={index} className="text-center p-4 bg-muted rounded-lg">
                       <div className="text-2xl mb-2">{weather.icon}</div>
                       <div className="font-medium">{weather.day}</div>
@@ -386,11 +480,81 @@ export const AdminDashboard = () => {
 
           <TabsContent value="farmers" className="space-y-6">
             <Card className="shadow-earth">
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
                   <Users className="h-5 w-5 text-primary" />
                   Farmer Management
                 </CardTitle>
+                <Dialog open={isAddFarmerOpen} onOpenChange={setIsAddFarmerOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="earth" className="gap-2">
+                      <Plus className="h-4 w-4" /> Add Farmer
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add New Farmer</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto pr-2">
+                      <div className="space-y-2">
+                        <Label>Username</Label>
+                        <Input value={newFarmer.username} onChange={(e) => setNewFarmer({ ...newFarmer, username: e.target.value })} placeholder="Enter farmer's username" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Password</Label>
+                        <Input type="password" value={newFarmer.password} onChange={(e) => setNewFarmer({ ...newFarmer, password: e.target.value })} placeholder="Set temporary password" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Phone</Label>
+                        <Input value={newFarmer.phone} onChange={(e) => setNewFarmer({ ...newFarmer, phone: e.target.value })} placeholder="Enter phone number" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Language Support</Label>
+                        <Select value={newFarmer.language} onValueChange={(val) => setNewFarmer({ ...newFarmer, language: val })}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select language" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="en">English (EN)</SelectItem>
+                            <SelectItem value="tl">Tagalog (TL)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Farm Details Section */}
+                      <Separator />
+                      <p className="text-sm font-semibold text-muted-foreground pt-2">Farm Details (Optional)</p>
+                      <div className="space-y-2">
+                        <Label>Farm Name</Label>
+                        <Input value={newFarmer.farm_name} onChange={(e) => setNewFarmer({ ...newFarmer, farm_name: e.target.value })} placeholder="Enter farm name" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Farm Size (Hectares)</Label>
+                        <Input type="number" step="any" value={newFarmer.farm_measurement} onChange={(e) => setNewFarmer({ ...newFarmer, farm_measurement: e.target.value })} placeholder="Enter size in hectares" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Primary Soil Type</Label>
+                        <Select value={newFarmer.soilType} onValueChange={(val) => setNewFarmer({ ...newFarmer, soilType: val })}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select soil type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="loam">Loam</SelectItem>
+                            <SelectItem value="clay">Clay</SelectItem>
+                            <SelectItem value="sandy">Sandy</SelectItem>
+                            <SelectItem value="silt">Silt</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setIsAddFarmerOpen(false)}>Cancel</Button>
+                      <Button onClick={handleAddFarmerSubmit} disabled={isAddingFarmer || !newFarmer.username || !newFarmer.password}>
+                        {isAddingFarmer ? 'Saving...' : 'Save Farmer'}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -413,7 +577,20 @@ export const AdminDashboard = () => {
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="text-sm text-muted-foreground font-medium mb-1">Assigned Farms:</p>
+                            <div className="flex items-center justify-end gap-3 mb-1">
+                              <p className="text-sm text-muted-foreground font-medium">Assigned Farms</p>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-6 w-6 p-0" 
+                                onClick={() => {
+                                  setSelectedFarmerId(farmer.farmer_id || farmer.id);
+                                  setIsAddFarmOpen(true);
+                                }}
+                              >
+                                <Plus className="h-4 w-4 text-primary" />
+                              </Button>
+                            </div>
                             <div className="space-y-1">
                               {assignedFarms.length === 0 ? (
                                 <div className="text-xs text-muted-foreground italic">None assigned</div>
@@ -431,248 +608,50 @@ export const AdminDashboard = () => {
                     );
                   })}
                 </div>
+                
+                {/* Add Farm Dialog */}
+                <Dialog open={isAddFarmOpen} onOpenChange={setIsAddFarmOpen}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add New Farm</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Label>Farm Name</Label>
+                        <Input value={newFarm.farm_name} onChange={(e) => setNewFarm({ ...newFarm, farm_name: e.target.value })} placeholder="Enter farm name" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Farm Size (Hectares)</Label>
+                        <Input type="number" step="any" value={newFarm.farm_measurement} onChange={(e) => setNewFarm({ ...newFarm, farm_measurement: e.target.value })} placeholder="Enter size in hectares" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Primary Soil Type</Label>
+                        <Select value={newFarm.soilType} onValueChange={(val) => setNewFarm({ ...newFarm, soilType: val })}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select soil type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="loam">Loam</SelectItem>
+                            <SelectItem value="clay">Clay</SelectItem>
+                            <SelectItem value="sandy">Sandy</SelectItem>
+                            <SelectItem value="silt">Silt</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => { setIsAddFarmOpen(false); setSelectedFarmerId(null); }}>Cancel</Button>
+                      <Button onClick={handleAddFarmSubmit} disabled={isAddingFarm || !newFarm.farm_name}>
+                        {isAddingFarm ? 'Saving...' : 'Save Farm'}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </CardContent>
             </Card>
           </TabsContent>
 
-          <TabsContent value="rules" className="space-y-6">
-            {/* AI Model Configuration */}
-            <Card className="shadow-earth border-primary/20">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Brain className="h-5 w-5 text-primary" />
-                  {t('aiCropRulesEngine')}
-                </CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  {t('aiCropRulesDescription')}
-                </p>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="aiModel">{t('aiModel')}</Label>
-                      <select
-                        id="aiModel"
-                        className="w-full mt-1 p-2 border border-input rounded-md bg-background"
-                      >
-                        <option value="gpt-4">GPT-4 - {t('highAccuracy')}</option>
-                        <option value="claude-3">Claude-3 - {t('balanced')}</option>
-                        <option value="gemini-pro">Gemini Pro - {t('fast')}</option>
-                      </select>
-                    </div>
-                    <div>
-                      <Label htmlFor="confidence">{t('confidenceThreshold')}</Label>
-                      <div className="flex items-center gap-2 mt-1">
-                        <input
-                          type="range"
-                          id="confidence"
-                          min="0.1"
-                          max="1.0"
-                          step="0.1"
-                          defaultValue="0.8"
-                          className="flex-1"
-                        />
-                        <span className="text-sm">80%</span>
-                      </div>
-                    </div>
-                    <div>
-                      <Label htmlFor="updateFreq">{t('autoUpdateFrequency')}</Label>
-                      <select
-                        id="updateFreq"
-                        className="w-full mt-1 p-2 border border-input rounded-md bg-background"
-                      >
-                        <option value="real-time">{t('realTime')}</option>
-                        <option value="daily">{t('daily')}</option>
-                        <option value="weekly">{t('weekly')}</option>
-                        <option value="manual">{t('manual')}</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="space-y-4">
-                    <div className="p-4 bg-primary/5 rounded-lg border border-primary/10">
-                      <h4 className="font-medium mb-2 text-primary">{t('aiCapabilities')}</h4>
-                      <ul className="text-sm space-y-1 text-muted-foreground">
-                        <li>• {t('realTimeAnalysis')}</li>
-                        <li>• {t('weatherIntegration')}</li>
-                        <li>• {t('soilDataProcessing')}</li>
-                        <li>• {t('predictiveModeling')}</li>
-                        <li>• {t('multicropOptimization')}</li>
-                      </ul>
-                    </div>
-                    <Button className="w-full" variant="default">
-                      <Zap className="h-4 w-4 mr-2" />
-                      {t('generateAiRules')}
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
 
-            {/* AI-Generated Rules */}
-            <Card className="shadow-earth">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Bot className="h-5 w-5 text-accent" />
-                  {t('aiGeneratedRules')}
-                </CardTitle>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-xs">
-                    {t('lastUpdated')}: {new Date().toLocaleString()}
-                  </Badge>
-                  <Badge variant="secondary" className="text-xs">
-                    {cropRules.length} {t('activeRules')}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {/* AI Rules Summary */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-600" />
-                        <span className="text-sm font-medium">{t('optimizedRules')}</span>
-                      </div>
-                      <p className="text-lg font-bold text-green-600 mt-1">{cropRules.filter(r => r.active).length}</p>
-                    </div>
-                    <div className="p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                      <div className="flex items-center gap-2">
-                        <TrendingUp className="h-4 w-4 text-blue-600" />
-                        <span className="text-sm font-medium">{t('accuracy')}</span>
-                      </div>
-                      <p className="text-lg font-bold text-blue-600 mt-1">94.2%</p>
-                    </div>
-                    <div className="p-4 bg-orange-50 dark:bg-orange-950/20 rounded-lg border border-orange-200 dark:border-orange-800">
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-orange-600" />
-                        <span className="text-sm font-medium">{t('processing')}</span>
-                      </div>
-                      <p className="text-lg font-bold text-orange-600 mt-1">1.2s</p>
-                    </div>
-                  </div>
-
-                  {/* Rules Table */}
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>{t('currentCrop')}</TableHead>
-                        <TableHead>{t('recommendedCrop')}</TableHead>
-                        <TableHead>{t('aiReason')}</TableHead>
-                        <TableHead>{t('confidence')}</TableHead>
-                        <TableHead>{t('status')}</TableHead>
-                        <TableHead>{t('actions')}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {cropRules.map((rule) => (
-                        <TableRow key={rule.id}>
-                          <TableCell className="font-medium">{rule.currentCrop}</TableCell>
-                          <TableCell>{rule.recommendedCrop}</TableCell>
-                          <TableCell className="text-sm max-w-[200px] truncate">{rule.reason}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <div className="w-12 bg-gray-200 rounded-full h-2">
-                                <div
-                                  className="bg-green-600 h-2 rounded-full"
-                                  style={{ width: `${Math.random() * 30 + 70}%` }}
-                                ></div>
-                              </div>
-                              <span className="text-xs">{Math.floor(Math.random() * 30 + 70)}%</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Switch
-                              checked={rule.active}
-                              onCheckedChange={(checked) =>
-                                updateCropRule({ ...rule, active: checked })
-                              }
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                title={t('editRule')}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => deleteCropRule(rule.id)}
-                                title={t('deleteRule')}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Manual Rule Override */}
-            <Card className="shadow-earth border-muted">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Settings className="h-5 w-5 text-muted-foreground" />
-                  {t('manualRuleOverride')}
-                </CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  {t('manualRuleDescription')}
-                </p>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div>
-                    <Label htmlFor="currentCrop">{t('currentCrop')}</Label>
-                    <Input
-                      id="currentCrop"
-                      value={newRule.currentCrop}
-                      onChange={(e) => setNewRule(prev => ({ ...prev, currentCrop: e.target.value }))}
-                      placeholder="e.g., Rice"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="recommendedCrop">{t('recommendedCrop')}</Label>
-                    <Input
-                      id="recommendedCrop"
-                      value={newRule.recommendedCrop}
-                      onChange={(e) => setNewRule(prev => ({ ...prev, recommendedCrop: e.target.value }))}
-                      placeholder="e.g., Beans"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="reason">{t('reason')}</Label>
-                    <Input
-                      id="reason"
-                      value={newRule.reason}
-                      onChange={(e) => setNewRule(prev => ({ ...prev, reason: e.target.value }))}
-                      placeholder="e.g., Nitrogen fixation"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="condition">{t('condition')}</Label>
-                    <Input
-                      id="condition"
-                      value={newRule.condition}
-                      onChange={(e) => setNewRule(prev => ({ ...prev, condition: e.target.value }))}
-                      placeholder="e.g., nitrogen < 30"
-                    />
-                  </div>
-                </div>
-                <Button onClick={handleAddRule} className="mt-4" variant="outline">
-                  <Plus className="h-4 w-4 mr-2" />
-                  {t('addManualRule')}
-                </Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
 
           <TabsContent value="data" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -705,9 +684,19 @@ export const AdminDashboard = () => {
                               <div><span className="font-medium text-warning">K:</span> {test.potassium}%</div>
                               <div><span className="font-medium text-success">pH:</span> {test.ph || test.pH}</div>
                             </div>
-                            <div className="grid grid-cols-2 gap-2 text-xs mt-2">
+                            <div className="grid grid-cols-2 gap-2 text-xs mt-2 bg-background p-2 rounded border border-border">
+                              <div className="flex flex-col">
+                                <span className="font-semibold text-muted-foreground mb-1">Classification:</span>
+                                <Badge variant="outline" className="w-fit text-[10px] uppercase font-bold">{test.npk_classification || test.classification || 'UNKNOWN'}</Badge>
+                              </div>
+                              <div className="text-right flex flex-col justify-center">
+                                <span className="font-semibold text-muted-foreground mb-1">Moisture:</span>
+                                <span className="text-sm font-medium">{test.soil_moisture || test.moisture || 0}%</span>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-xs mt-3">
                               <div><Thermometer className="inline w-3 h-3 mr-1" /> {test.temperature}°C</div>
-                              <div className="text-right">Moisture: {test.soil_moisture}%</div>
+                              <div className="text-right">Salinity: {test.salinity || 0}%</div>
                             </div>
                             <div className="mt-3 text-xs text-muted-foreground border-t pt-2">
                               Test Date: {new Date(test.created_at).toLocaleString()}
@@ -765,6 +754,79 @@ export const AdminDashboard = () => {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          <TabsContent value="fertilizer" className="space-y-6">
+             <Card className="shadow-earth">
+               <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                     <Droplets className="h-5 w-5 text-success" />
+                     Fertilizer Application Timeline
+                  </CardTitle>
+               </CardHeader>
+               <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                     {farms.length === 0 ? (
+                        <div className="col-span-full">
+                           <p className="text-muted-foreground text-center p-8 border-2 border-dashed border-border rounded-lg">No farms registered yet.</p>
+                        </div>
+                     ) : (
+                        farms.map((farm: any) => {
+                           const cropName = dbSystemActivity.find((a: any) => a.farm_id === farm.farm_id || a.farm_id === farm.id)?.crop_name || 'Mixed Crops';
+                           return (
+                             <Card key={farm.farm_id || farm.id} className="border-border shadow-sm flex flex-col h-full bg-card/50">
+                                <CardHeader className="pb-3 border-b border-border/50 bg-muted/20">
+                                   <div className="flex justify-between items-start">
+                                      <CardTitle className="text-lg leading-tight text-primary">{farm.farm_name || farm.name}</CardTitle>
+                                      <Badge variant="secondary" className="text-[10px] whitespace-nowrap ml-2">
+                                         {cropName}
+                                      </Badge>
+                                   </div>
+                                </CardHeader>
+                                <CardContent className="pt-4 flex-1">
+                                   <div className="relative pl-6 border-l-2 border-border/60 space-y-6">
+                                      {/* Mock timeline items */}
+                                      <div className="relative">
+                                         <div className="absolute -left-[31px] top-1.5 bg-success w-3.5 h-3.5 rounded-full border-2 border-background ring-2 ring-success/20 shadow-sm z-10" />
+                                         <div>
+                                            <div className="flex justify-between items-center mb-1 gap-2">
+                                               <h4 className="font-semibold text-sm text-foreground leading-tight">Ammonium Nitrate</h4>
+                                               <span className="text-[10px] font-medium text-success bg-success/10 px-2 py-0.5 rounded-full whitespace-nowrap">Just now</span>
+                                            </div>
+                                            <p className="text-xs text-muted-foreground leading-snug">Applied 50kg/ha (34-0-0) as vegetative top dressing.</p>
+                                         </div>
+                                      </div>
+                                      
+                                      <div className="relative">
+                                         <div className="absolute -left-[31px] top-1.5 bg-muted-foreground/60 w-3 h-3 rounded-full border-2 border-background z-10" />
+                                         <div className="opacity-80 hover:opacity-100 transition-opacity">
+                                            <div className="flex justify-between items-center mb-1 gap-2">
+                                               <h4 className="font-medium text-sm text-foreground leading-tight">Superphosphate</h4>
+                                               <span className="text-[10px] text-muted-foreground whitespace-nowrap">2 weeks ago</span>
+                                            </div>
+                                            <p className="text-[11px] text-muted-foreground leading-snug">Applied 20kg/ha (0-46-0) during basal application.</p>
+                                         </div>
+                                      </div>
+                                      
+                                      <div className="relative">
+                                         <div className="absolute -left-[31px] top-1.5 bg-muted-foreground/60 w-3 h-3 rounded-full border-2 border-background z-10" />
+                                         <div className="opacity-60 hover:opacity-100 transition-opacity">
+                                            <div className="flex justify-between items-center mb-1 gap-2">
+                                               <h4 className="font-medium text-sm text-foreground leading-tight">Potassium Chloride</h4>
+                                               <span className="text-[10px] text-muted-foreground whitespace-nowrap">1 month ago</span>
+                                            </div>
+                                            <p className="text-[11px] text-muted-foreground leading-snug">Applied 30kg/ha (0-0-60) pre-planting preparation.</p>
+                                         </div>
+                                      </div>
+                                   </div>
+                                </CardContent>
+                             </Card>
+                           );
+                        })
+                     )}
+                  </div>
+               </CardContent>
+             </Card>
           </TabsContent>
         </Tabs>
       </div>

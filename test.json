@@ -1,0 +1,37 @@
+{
+  "status": "success",
+  "message": "Soil health tests retrieved successfully",
+  "data": [
+    {
+      "nitrogen": [
+        45.5
+      ],
+      "phosphorus": [
+        28.3
+      ],
+      "potassium": [
+        120.7
+      ],
+      "ph": [
+        6.8
+      ],
+      "salinity": [
+        0.5
+      ],
+      "temperature": [
+        22.5
+      ],
+      "moisture": [
+        65.2
+      ],
+      "farm_id": [
+        "0b2f84db-678c-4da1-8c2c-2a6aacd01304"
+      ],
+      "classification": [
+        "Good"
+      ],
+      "created_at": "2026-01-26T12:56:03.535259+00:00",
+      "test_id": "fda512e1-0f66-4109-9340-6073a3dbcdec"
+    }
+  ]
+}

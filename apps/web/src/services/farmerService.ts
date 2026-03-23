@@ -1,10 +1,12 @@
-import { supabase } from '../lib/supabaseClient'
+import { apiGet, apiPost } from './apiClient';
 
 export async function getFarmers() {
-    const { data, error } = await supabase
-        .from('farmer')
-        .select('*')
+    // Equivalent: supabase.from('farmer').select('*')
+    const response = await apiGet<any[]>('/farmer?select=*');
+    return response || [];
+}
 
-    if (error) throw error
-    return data
+export async function createFarmer(farmerData: any) {
+    const response = await apiPost<any[]>('/farmer', farmerData);
+    return response?.[0] || null;
 }

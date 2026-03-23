@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { loginAdmin } from '../services/auth.service';
 import { useGlobalAuth } from '../hooks/useGlobalAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,22 +20,22 @@ export const LoginPage: React.FC = () => {
     setLoading(true);
 
     try {
-      // Find user in Admin table
-      const { data: adminData, error: adminError } = await (supabase as any)
-        .from('admin')
-        .select('*')
-        // Checking exact match against the custom username and password columns
-        .eq('username', username)
-        .eq('password', password)
-        .single();
+      // Call the custom backend API for admin login
+      const response = await loginAdmin({ username, password });
 
-      if (adminData) {
-        login({ id: adminData.id || adminData.admin_id || 1, username: adminData.username || username, role: 'admin' });
+      if (response.status === 'success' && response.data) {
+        const adminData = response.data;
+
+        login({
+          id: adminData.id || adminData.admin_id || 1,
+          username: adminData.username || username,
+          role: 'admin',
+        });
+
         toast.success("Successfully logged in as Admin");
         return;
       }
 
-      // If no match was found
       throw new Error("Invalid username or password. Please check your credentials.");
 
     } catch (error: any) {

@@ -1,16 +1,17 @@
-import { supabase } from '../lib/supabaseClient'
+import { getFarms } from './farmService';
+import { getFarmers } from './farmerService';
+import { getTanimSystems } from './systemService';
 
 export async function getDashboardStats() {
-
-    const farmers = await supabase.from('farmer').select('*', { count: 'exact', head: true })
-
-    const farms = await supabase.from('farm').select('*', { count: 'exact', head: true })
-
-    const systems = await supabase.from('tanim_system').select('*', { count: 'exact', head: true })
+    const [farms, farmers, systems] = await Promise.all([
+        getFarms().catch(() => []),
+        getFarmers().catch(() => []),
+        getTanimSystems().catch(() => []),
+    ]);
 
     return {
-        farmers: farmers.count,
-        farms: farms.count,
-        systems: systems.count
-    }
+        farmers: farmers.length,
+        farms: farms.length,
+        systems: systems.length,
+    };
 }

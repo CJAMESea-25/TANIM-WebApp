@@ -13,10 +13,13 @@ function buildHeaders(includeAuth = true, method = 'GET'): HeadersInit {
         'apikey': ANON_KEY,
     };
 
-    if (method === 'POST' || method === 'PATCH' || method === 'PUT') {
+    if (method === 'POST' || method === 'PATCH' || method === 'PUT' || method === 'DELETE') {
         headers['Prefer'] = 'return=representation';
     }
 
+    // Since the app uses custom table-based auth instead of Supabase Auth,
+    // we must strictly use the ANON_KEY JWT for all Supabase REST requests.
+    // Otherwise, old tokens from localStorage cause "No suitable key" errors.
     headers['Authorization'] = `Bearer ${ANON_KEY}`;
 
     return headers;

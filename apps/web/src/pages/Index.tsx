@@ -1,8 +1,8 @@
 import React from 'react';
-import { LoginPage } from '@/pages/LoginPage';
-import { FarmerInterface } from '@/components/FarmerInterface';
-import { AdminDashboard } from '@/components/AdminDashboard';
-import { useGlobalAuth } from '@/hooks/useGlobalAuth';
+import { LoginPage } from '@/features/auth/components/LoginPage';
+import { FarmerInterface } from '@/features/farmers/components/FarmerInterface';
+import { AdminDashboard } from '@/features/dashboard/components/AdminDashboard';
+import { useGlobalAuth } from '@/features/auth/hooks/useGlobalAuth';
 
 console.log('Index.tsx module loaded successfully');
 

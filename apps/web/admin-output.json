@@ -1,0 +1,14 @@
+[
+  {
+    "username": "admin",
+    "password": "$2b$12$wYMhC2jtQ0/fTh/Evs5uveZlsv/wWuW1WiW.Vwof9vazT0Pf6mDxe"
+  },
+  {
+    "username": "admin123",
+    "password": "admin123"
+  },
+  {
+    "username": "superadmin",
+    "password": "$2b$12$XEKTmwi3fgdm9bKr1aSM2OerXcDc/YTG6pXvVn/x0gCiK7fQScA66"
+  }
+]

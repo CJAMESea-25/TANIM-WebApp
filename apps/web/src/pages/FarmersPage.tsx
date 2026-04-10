@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { getFarmers } from '../services/farmerService'
-import { Farmer } from '../types/farmer'
+import { getFarmers } from '@/features/farmers/services/farmerService'
+import { Farmer } from '@/features/farmers/types/farmer'
 
 export default function FarmersPage() {
     const [farmers, setFarmers] = useState<Farmer[]>([])

@@ -105,6 +105,53 @@ export async function debugLogAllFarmingSessions(): Promise<void> {
   console.log('[farming_session] full table (raw API):', rows);
 }
 
+/** Columns omitted from admin CSV export (session row ids and farm/farmer FKs). */
+const FARMING_SESSION_ID_COLUMNS = new Set([
+  'id',
+  'farming_session_id',
+  'farm_farming_session_id',
+  'farm_id',
+  'farmer_id',
+]);
+
+const FARMING_SESSION_PAGE_SIZE = 1000;
+
+/** Full table via paged GETs (PostgREST often caps rows per request). */
+export async function fetchAllFarmingSessionsRaw(): Promise<Record<string, unknown>[]> {
+  const all: Record<string, unknown>[] = [];
+  for (let offset = 0; ; offset += FARMING_SESSION_PAGE_SIZE) {
+    const q = `/farming_session?select=*&order=created_at.desc&limit=${FARMING_SESSION_PAGE_SIZE}&offset=${offset}`;
+    const rows = await apiGet<Record<string, unknown>[]>(q);
+    const batch = Array.isArray(rows) ? rows : [];
+    all.push(...batch);
+    if (batch.length < FARMING_SESSION_PAGE_SIZE) break;
+  }
+  return all;
+}
+
+function escapeCsvCell(val: unknown): string {
+  if (val == null) return '';
+  const s = typeof val === 'object' ? JSON.stringify(val) : String(val);
+  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+/** Build CSV for all rows; columns = union of non-id keys across rows, sorted for stable headers. */
+export function farmingSessionsRowsToCsv(rows: Record<string, unknown>[]): string {
+  const keySet = new Set<string>();
+  for (const row of rows) {
+    for (const k of Object.keys(row)) {
+      if (!FARMING_SESSION_ID_COLUMNS.has(k)) keySet.add(k);
+    }
+  }
+  const headers = [...keySet].sort();
+  const lines = [
+    headers.map(escapeCsvCell).join(','),
+    ...rows.map((row) => headers.map((h) => escapeCsvCell(row[h])).join(',')),
+  ];
+  return lines.join('\n');
+}
+
 /**
  * Load all farming sessions for a farm (newest first). Active row = `ended_at` is null.
  */

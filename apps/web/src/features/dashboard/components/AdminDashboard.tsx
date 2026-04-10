@@ -8,6 +8,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import { createFarmer, updateFarmer, deleteFarmer } from '@/features/farmers/services/farmerService';
 import { createFarm, deleteFarm } from '@/features/farms/services/farmService';
 import { useCropStore } from '@/features/crops/stores/cropStore';
+import {
+  fetchAllFarmingSessionsRaw,
+  farmingSessionsRowsToCsv,
+} from '@/features/farms/services/farmingSessionService';
 import { AppLayout } from '@/shared/components/layout/AppLayout';
 import { SidebarPage } from '@/shared/components/layout/Sidebar';
 
@@ -45,6 +49,7 @@ const DashboardPage = ({
 }: {
   farms: any[]; farmers: any[]; dbSoilTests: any[]; dbSystemActivity: any[]; liveWeather: any[]; onAddFarmer: () => void;
 }) => {
+  const [isExportingSessions, setIsExportingSessions] = React.useState(false);
   const avgN = dbSoilTests.length ? dbSoilTests.reduce((acc: number, t: any) => acc + Number(t.nitrogen || 0), 0) / dbSoilTests.length : 0;
   const avgP = dbSoilTests.length ? dbSoilTests.reduce((acc: number, t: any) => acc + Number(t.phosphorus || 0), 0) / dbSoilTests.length : 0;
   const avgK = dbSoilTests.length ? dbSoilTests.reduce((acc: number, t: any) => acc + Number(t.potassium || 0), 0) / dbSoilTests.length : 0;
@@ -88,45 +93,33 @@ const DashboardPage = ({
     },
   };
 
-  const handleExportCSV = () => {
-    if (!dbSoilTests || dbSoilTests.length === 0) {
-      alert("No soil test data available to export.");
-      return;
+  const handleExportCSV = async () => {
+    try {
+      setIsExportingSessions(true);
+      const rows = await fetchAllFarmingSessionsRaw();
+      if (!rows.length) {
+        alert('No farming session data available to export.');
+        return;
+      }
+      const csvContent = farmingSessionsRowsToCsv(rows);
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute(
+        'download',
+        `farming_sessions_${new Date().toISOString().split('T')[0]}.csv`,
+      );
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error(e);
+      alert('Could not export farming sessions. Please try again.');
+    } finally {
+      setIsExportingSessions(false);
     }
-
-    const headers = [
-      "Test ID", "Farm Name", "Nitrogen (N)", "Phosphorus (P)",
-      "Potassium (K)", "pH", "Moisture", "Temperature", "Humidity", "Date"
-    ];
-
-    const rows = dbSoilTests.map((t: any) => {
-      const parentFarm = farms.find(f => f.farm_id === t.farm_id || f.id === t.farm_id);
-      const farmName = parentFarm ? (parentFarm.farm_name || parentFarm.name) : 'Unknown Farm';
-
-      return [
-        t.soil_test_id || t.id || 'N/A',
-        farmName,
-        t.nitrogen || 0,
-        t.phosphorus || 0,
-        t.potassium || 0,
-        t.ph || 0,
-        t.moisture || 0,
-        t.temperature || 0,
-        t.humidity || 0,
-        t.created_at ? new Date(t.created_at).toISOString().split('T')[0] : 'N/A'
-      ];
-    });
-
-    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `soil_health_trends_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
   };
 
   const latestFarm = farms[farms.length - 1];
@@ -154,13 +147,19 @@ const DashboardPage = ({
           </p>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 }}>
-          <button onClick={handleExportCSV} style={{
+          <button
+            type="button"
+            disabled={isExportingSessions}
+            onClick={() => void handleExportCSV()}
+            style={{
             display: 'inline-flex', alignItems: 'center', gap: 7, padding: '10px 18px',
-            borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+            borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: isExportingSessions ? 'wait' : 'pointer',
             background: '#fff', border: '1.5px solid #d5cfc5', color: '#4a5a40',
             boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-          }}>
-            <Download size={14} /> Export Report
+            opacity: isExportingSessions ? 0.7 : 1,
+          }}
+          >
+            <Download size={14} /> {isExportingSessions ? 'Exporting…' : 'Export Report'}
           </button>
           <button onClick={onAddFarmer} style={{
             display: 'inline-flex', alignItems: 'center', gap: 7, padding: '10px 18px',

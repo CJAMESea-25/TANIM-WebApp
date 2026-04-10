@@ -490,7 +490,7 @@ export const AdminDashboard = () => {
       case 'farms':
         return (
           <FarmsTab
-            farms={farms} farmers={farmers} dbSoilTests={dbSoilTests}
+            farms={farms} farmers={farmers}
             searchQuery={searchQuery}
             isAddFarmOpen={isAddFarmOpen} setIsAddFarmOpen={setIsAddFarmOpen}
             newFarm={newFarm} setNewFarm={setNewFarm}

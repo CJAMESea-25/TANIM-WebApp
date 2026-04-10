@@ -1,4 +1,5 @@
 import { apiGet, apiPost } from './apiClient';
+import { hashFarmerPassword } from '@/shared/lib/passwordHash';
 
 export async function getFarmers() {
     // Equivalent: supabase.from('farmer').select('*')
@@ -7,6 +8,10 @@ export async function getFarmers() {
 }
 
 export async function createFarmer(farmerData: any) {
-    const response = await apiPost<any[]>('/farmer', farmerData);
+    const payload = { ...farmerData };
+    if (payload.password && typeof payload.password === 'string') {
+        payload.password = await hashFarmerPassword(payload.password);
+    }
+    const response = await apiPost<any[]>('/farmer', payload);
     return response?.[0] || null;
 }

@@ -4,8 +4,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, MapPin, TrendingUp, Edit2, Trash2, User, Droplets, Activity, Thermometer, Wind, Leaf, Tractor } from 'lucide-react';
+import { Plus, MapPin, TrendingUp, Edit2, Trash2, User, Leaf, Tractor, History, Download } from 'lucide-react';
 import { updateFarm, deleteFarm } from '@/features/farms/services/farmService';
+import {
+  debugLogAllFarmingSessions,
+  fetchFarmingSessionsForFarm,
+  soilScalarsFromSnapshot,
+  sessionCropLabel,
+  type FarmingSessionRow,
+} from '@/features/farms/services/farmingSessionService';
 import { useQueryClient } from '@tanstack/react-query';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -30,13 +37,104 @@ function getFarmLocation(farm: any): string {
   return 'Not specified';
 }
 
+/**
+ * Pad each column so values align in plain-text tools. Also enforce minimum widths so short
+ * headers/values still reserve space when the file is opened in Excel (default column sizing).
+ */
+function padCsvColumns(matrix: string[][]): string[][] {
+  if (matrix.length === 0) return matrix;
+  const colCount = matrix[0].length;
+  const maxLen = new Array(colCount).fill(0);
+  for (const r of matrix) {
+    for (let c = 0; c < colCount; c++) {
+      const len = (r[c] ?? '').length;
+      if (len > maxLen[c]) maxLen[c] = len;
+    }
+  }
+  // Minimum display width per column (chars), matched to header / typical values.
+  const minWidths = [22, 24, 18, 16, 14, 18, 18, 20, 22, 22, 12, 18, 16, 22];
+  const extra = 18;
+  const target = maxLen.map((m, c) => Math.max(m + extra, minWidths[c] ?? 16));
+  return matrix.map((r) => r.map((cell, c) => (cell ?? '').padEnd(target[c], ' ')));
+}
+
+function csvQuoteCell(cell: string): string {
+  return `"${String(cell).replace(/"/g, '""')}"`;
+}
+
+function cropHistoryMatrixToCsv(matrix: string[][]): string {
+  const body = matrix.map((row) => row.map(csvQuoteCell).join(',')).join('\r\n');
+  // Excel (especially with regional list-separator settings) uses this first line to lock comma as the delimiter.
+  return `sep=,\r\n${body}`;
+}
+
+function downloadTextFile(filename: string, content: string, mime: string) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.rel = 'noopener';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function buildCropHistoryCsv(
+  farmName: string,
+  farmerName: string,
+  sessions: FarmingSessionRow[],
+  fmtShort: (iso?: string | null) => string,
+): string {
+  const headers = [
+    'Farm name',
+    'Farmer name',
+    'Started',
+    'Crop',
+    'Status',
+    'End date',
+    'Soil date',
+    'Nitrogen (N)',
+    'Phosphorus (P)',
+    'Potassium (K)',
+    'pH',
+    'Moisture %',
+    'Temp. (C)',
+    'Salinity (EC)',
+  ];
+  const rows: string[][] = [headers];
+  for (const row of sessions) {
+    const s = soilScalarsFromSnapshot(row.soil_snapshot);
+    const started = row.started_at || row.created_at;
+    const ended = row.ended_at;
+    const activeRow = !ended;
+    const soilDate = s?.received_at || started;
+    rows.push([
+      farmName,
+      farmerName,
+      fmtShort(started),
+      sessionCropLabel(row),
+      activeRow ? 'Active' : 'Ended',
+      activeRow ? '—' : fmtShort(ended),
+      fmtShort(soilDate),
+      s?.nitrogen != null ? String(s.nitrogen) : '—',
+      s?.phosphorus != null ? String(s.phosphorus) : '—',
+      s?.potassium != null ? String(s.potassium) : '—',
+      s?.ph != null ? String(s.ph) : '—',
+      s?.moisture != null ? `${s.moisture}%` : '—',
+      s?.temperature != null ? `${s.temperature}` : '—',
+      s?.salinity != null ? String(s.salinity) : '—',
+    ]);
+  }
+  const padded = padCsvColumns(rows);
+  return cropHistoryMatrixToCsv(padded);
+}
+
 
 // ─── FarmsTab (exported) ──────────────────────────────────────────────────────
 
 export interface FarmsTabProps {
   farms: any[];
   farmers: any[];
-  dbSoilTests?: any[];
   searchQuery?: string;
   isAddFarmOpen: boolean;
   setIsAddFarmOpen: (v: boolean) => void;
@@ -49,7 +147,7 @@ export interface FarmsTabProps {
 }
 
 export const FarmsTab = ({
-  farms, farmers, dbSoilTests = [], searchQuery = '',
+  farms, farmers, searchQuery = '',
   isAddFarmOpen, setIsAddFarmOpen,
   newFarm, setNewFarm, isAddingFarm, handleAddFarmSubmit,
   selectedFarmerId, setSelectedFarmerId,
@@ -67,6 +165,48 @@ export const FarmsTab = ({
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [deleteError, setDeleteError] = React.useState('');
   const [viewingFarm, setViewingFarm] = React.useState<any>(null);
+  const [farmSessionState, setFarmSessionState] = React.useState<{
+    active: FarmingSessionRow | null;
+    history: FarmingSessionRow[];
+    loading: boolean;
+    error: string;
+  }>({ active: null, history: [], loading: false, error: '' });
+
+  React.useEffect(() => {
+    const farmId = viewingFarm?.farm_id || viewingFarm?.id;
+    if (!farmId) {
+      setFarmSessionState({ active: null, history: [], loading: false, error: '' });
+      return;
+    }
+    let cancelled = false;
+    setFarmSessionState((s) => ({ ...s, loading: true, error: '' }));
+    debugLogAllFarmingSessions().catch((e) =>
+      console.warn('[farming_session] debugLogAllFarmingSessions failed:', e),
+    );
+    fetchFarmingSessionsForFarm(farmId)
+      .then(({ active, history }) => {
+        if (cancelled) return;
+        setFarmSessionState({
+          active,
+          history,
+          loading: false,
+          error: '',
+        });
+      })
+      .catch((e: unknown) => {
+        if (cancelled) return;
+        const message = e instanceof Error ? e.message : 'Failed to load farming sessions';
+        setFarmSessionState({
+          active: null,
+          history: [],
+          loading: false,
+          error: message,
+        });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [viewingFarm]);
 
   const nextStatusFilter = () => {
     const cycle = ['all', 'healthy', 'attention', 'critical'];
@@ -459,20 +599,33 @@ export const FarmsTab = ({
 
       {/* Farm & Farmer Details Modal */}
       <Dialog open={!!viewingFarm} onOpenChange={(open) => !open && setViewingFarm(null)}>
-        <DialogContent style={{ maxWidth: 640, borderRadius: 16, padding: 0, overflow: 'hidden' }}>
+        <DialogContent
+          style={{
+            maxWidth: 1120,
+            width: 'min(calc(100vw - 32px), 1120px)',
+            borderRadius: 16,
+            padding: 0,
+            overflow: 'hidden',
+            maxHeight: 'min(90vh, 900px)',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
           {viewingFarm && (() => {
             const farmer = farmers.find((f: any) => f.farmer_id === viewingFarm.farmer_id || f.id === viewingFarm.farmer_id);
-            // Filter ALL soil tests for this farm by farm_id, sorted most recent first
-            const farmId = viewingFarm.farm_id || viewingFarm.id;
-            const farmSoilTests = dbSoilTests
-              .filter((t: any) => t.farm_id === farmId)
-              .sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
-            const soilTest = farmSoilTests[0] || null; // most recent
+            const { active: fsActive, history: fsHistory, loading: fsLoading, error: fsError } = farmSessionState;
+            const fmtShort = (iso?: string | null) =>
+              iso ? new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+            const cropFromSession = fsActive
+              ? sessionCropLabel(fsActive)
+              : fsHistory.length
+                ? sessionCropLabel(fsHistory[0])
+                : null;
             const farmerName = farmer ? `${farmer.first_name || ''} ${farmer.last_name || ''}`.trim() || farmer.username || farmer.name : 'Unknown Farmer';
-            const cropName = "Rice, Corn"; // Mock fallback
+            const farmDisplayName = viewingFarm.farm_name || viewingFarm.name || 'Unnamed Farm';
 
             return (
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, width: '100%', flex: 1, minHeight: 0 }}>
                 {/* Header - Farm Banner */}
                 <div style={{ background: 'linear-gradient(135deg, #3a5a40, #588157)', padding: '24px 32px', color: '#fff' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
@@ -487,7 +640,22 @@ export const FarmsTab = ({
                   </div>
                 </div>
 
-                <div style={{ padding: '28px 32px', background: '#fcfbef', display: 'flex', flexDirection: 'column', gap: 24 }}>
+                <div
+                  style={{
+                    padding: '28px 32px',
+                    background: '#fcfbef',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 24,
+                    minWidth: 0,
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    flex: 1,
+                    minHeight: 0,
+                    overflowY: 'auto',
+                    overflowX: 'hidden',
+                  }}
+                >
 
                   {/* Farmer Details */}
                   <div>
@@ -518,7 +686,9 @@ export const FarmsTab = ({
                       </div>
                       <div>
                         <div style={{ fontSize: 11, color: '#8a9880', marginBottom: 2 }}>Crops Planted</div>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: '#2e3a28' }}>{viewingFarm.currentCrops?.join(', ') || cropName}</div>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: '#2e3a28' }}>
+                          {viewingFarm.currentCrops?.join(', ') || cropFromSession || '—'}
+                        </div>
                       </div>
                       <div style={{ gridColumn: '1 / -1' }}>
                         <div style={{ fontSize: 11, color: '#8a9880', marginBottom: 2 }}>GPS Coordinates</div>
@@ -531,74 +701,150 @@ export const FarmsTab = ({
                     </div>
                   </div>
 
-                  {/* Soil Health Parameters */}
-                  <div>
-                    <h3 style={{ fontSize: 13, fontWeight: 700, color: '#3a5a40', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <Activity size={16} /> Soil Health Parameters
-                    </h3>
-                    {soilTest ? (
-                      <div style={{ background: '#fff', borderRadius: 12, padding: '20px', border: '1px solid #e0ddd4' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-                          <span style={{ fontSize: 11, fontWeight: 700, background: '#e8f0e0', color: '#4a5a40', padding: '4px 10px', borderRadius: 20 }}>
-                            {viewingFarm.soilType ? `${viewingFarm.soilType.charAt(0).toUpperCase()}${viewingFarm.soilType.slice(1)} Soil` : 'Unknown Soil Type'}
-                          </span>
-                          <span style={{ fontSize: 11, color: '#8a9880' }}>
-                            Last tested: {soilTest.created_at
-                              ? new Date(soilTest.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
-                              : 'Unknown date'}
-                          </span>
-                          {farmSoilTests.length > 1 && (
-                            <span style={{ fontSize: 11, color: '#a3b18a', marginLeft: 'auto' }}>
-                              {farmSoilTests.length} test records
-                            </span>
-                          )}
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-                          <div style={{ background: '#fdfbfa', border: '1px solid #f0ede4', borderRadius: 10, padding: '12px 16px' }}>
-                            <div style={{ fontSize: 11, color: '#8a9880', marginBottom: 4 }}>Nitrogen (N)</div>
-                            <div style={{ fontSize: 18, fontWeight: 700, color: '#2e3a28' }}>{soilTest.nitrogen ?? '—'}</div>
-                          </div>
-                          <div style={{ background: '#fdfbfa', border: '1px solid #f0ede4', borderRadius: 10, padding: '12px 16px' }}>
-                            <div style={{ fontSize: 11, color: '#8a9880', marginBottom: 4 }}>Phosphorus (P)</div>
-                            <div style={{ fontSize: 18, fontWeight: 700, color: '#2e3a28' }}>{soilTest.phosphorus ?? '—'}</div>
-                          </div>
-                          <div style={{ background: '#fdfbfa', border: '1px solid #f0ede4', borderRadius: 10, padding: '12px 16px' }}>
-                            <div style={{ fontSize: 11, color: '#8a9880', marginBottom: 4 }}>Potassium (K)</div>
-                            <div style={{ fontSize: 18, fontWeight: 700, color: '#2e3a28' }}>{soilTest.potassium ?? '—'}</div>
-                          </div>
-                          <div style={{ background: '#fdfbfa', border: '1px solid #f0ede4', borderRadius: 10, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <Thermometer size={16} color="#8a9880" />
-                            <div>
-                              <div style={{ fontSize: 10, color: '#8a9880' }}>pH Level</div>
-                              <div style={{ fontSize: 14, fontWeight: 600, color: '#2e3a28' }}>{soilTest.ph ?? '—'}</div>
-                            </div>
-                          </div>
-                          <div style={{ background: '#fdfbfa', border: '1px solid #f0ede4', borderRadius: 10, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <Droplets size={16} color="#8a9880" />
-                            <div>
-                              <div style={{ fontSize: 10, color: '#8a9880' }}>Moisture</div>
-                              <div style={{ fontSize: 14, fontWeight: 600, color: '#2e3a28' }}>{soilTest.moisture != null ? `${soilTest.moisture}%` : '—'}</div>
-                            </div>
-                          </div>
-                          <div style={{ background: '#fdfbfa', border: '1px solid #f0ede4', borderRadius: 10, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <Wind size={16} color="#8a9880" />
-                            <div>
-                              <div style={{ fontSize: 10, color: '#8a9880' }}>Temperature / Salinity</div>
-                              <div style={{ fontSize: 14, fontWeight: 600, color: '#2e3a28' }}>
-                                {soilTest.temperature != null ? `${soilTest.temperature}°` : '—'}
-                                {soilTest.salinity != null ? ` / ${soilTest.salinity}` : ''}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
+                  {/* Crop history: session timeline + soil snapshot per row */}
+                  <div style={{ minWidth: 0, width: '100%' }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 12,
+                        flexWrap: 'wrap',
+                        marginBottom: 12,
+                      }}
+                    >
+                      <h3
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 700,
+                          color: '#3a5a40',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em',
+                          margin: 0,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
+                        }}
+                      >
+                        <History size={16} /> Crop History
+                      </h3>
+                      {fsHistory.length > 0 && !fsLoading && !fsError && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="shrink-0 border-[#d0d4c8] text-[#3a5a40] hover:bg-[#f0ede4]"
+                          onClick={() => {
+                            const csv = buildCropHistoryCsv(farmDisplayName, farmerName, fsHistory, fmtShort);
+                            const safeFarm = farmDisplayName.replace(/[^\w\-]+/g, '_').replace(/_+/g, '_').slice(0, 60) || 'farm';
+                            const stamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
+                            downloadTextFile(
+                              `crop-history_${safeFarm}_${stamp}.csv`,
+                              `\uFEFF${csv}`,
+                              'text/csv;charset=utf-8;',
+                            );
+                          }}
+                        >
+                          <Download size={14} className="mr-1.5" />
+                          Export CSV
+                        </Button>
+                      )}
+                    </div>
+                    {fsLoading ? (
+                      <div style={{ fontSize: 13, color: '#6a7a60', padding: 16 }}>Loading crop history…</div>
+                    ) : fsError ? (
+                      <div style={{ background: '#fff5f5', border: '1px solid #fca5a5', borderRadius: 12, padding: 12, fontSize: 12, color: '#b91c1c' }}>{fsError}</div>
+                    ) : fsHistory.length === 0 ? (
+                      <div style={{ background: '#fff', borderRadius: 12, padding: '20px', border: '1px solid #e0ddd4', textAlign: 'center', fontSize: 12, color: '#8a9880' }}>
+                        No farming sessions recorded for this farm yet. When sessions run, crop choices and any soil snapshots will appear here.
                       </div>
                     ) : (
-                      <div style={{ background: '#fff', borderRadius: 12, padding: '24px', border: '1px solid #e0ddd4', textAlign: 'center' }}>
-                        <div style={{ color: '#8a9880', marginBottom: 6 }}>
-                          <Activity size={24} style={{ margin: '0 auto', opacity: 0.5 }} />
+                      <div
+                        style={{
+                          background: '#fff',
+                          borderRadius: 12,
+                          border: '1px solid #e0ddd4',
+                          maxWidth: '100%',
+                          minWidth: 0,
+                          overflow: 'hidden',
+                        }}
+                      >
+                        <div
+                          role="region"
+                          aria-label="Crop history table, scroll horizontally for all columns"
+                          style={{
+                            maxHeight: 280,
+                            width: '100%',
+                            minWidth: 0,
+                            overflowX: 'scroll',
+                            overflowY: 'auto',
+                            WebkitOverflowScrolling: 'touch',
+                            scrollbarGutter: 'stable',
+                          }}
+                        >
+                          <table
+                            style={{
+                              width: 'max-content',
+                              minWidth: '100%',
+                              borderCollapse: 'collapse',
+                              fontSize: 11,
+                            }}
+                          >
+                            <thead>
+                              <tr style={{ background: '#f5f2ea', color: '#4a5a40', textAlign: 'left' }}>
+                                <th style={{ padding: '8px 10px', fontWeight: 700, whiteSpace: 'nowrap' }}>Farm name</th>
+                                <th style={{ padding: '8px 10px', fontWeight: 700, whiteSpace: 'nowrap' }}>Farmer name</th>
+                                <th style={{ padding: '8px 10px', fontWeight: 700, whiteSpace: 'nowrap' }}>Started</th>
+                                <th style={{ padding: '8px 10px', fontWeight: 700, whiteSpace: 'nowrap' }}>Crop</th>
+                                <th style={{ padding: '8px 10px', fontWeight: 700, whiteSpace: 'nowrap' }}>Status</th>
+                                <th style={{ padding: '8px 10px', fontWeight: 700, whiteSpace: 'nowrap' }}>End date</th>
+                                <th style={{ padding: '8px 10px', fontWeight: 700, whiteSpace: 'nowrap' }}>Soil date</th>
+                                <th style={{ padding: '8px 10px', fontWeight: 700, whiteSpace: 'nowrap' }} title="Nitrogen">N</th>
+                                <th style={{ padding: '8px 10px', fontWeight: 700, whiteSpace: 'nowrap' }} title="Phosphorus">P</th>
+                                <th style={{ padding: '8px 10px', fontWeight: 700, whiteSpace: 'nowrap' }} title="Potassium">K</th>
+                                <th style={{ padding: '8px 10px', fontWeight: 700, whiteSpace: 'nowrap' }}>pH</th>
+                                <th style={{ padding: '8px 10px', fontWeight: 700, whiteSpace: 'nowrap' }} title="Moisture %">Moisture</th>
+                                <th style={{ padding: '8px 10px', fontWeight: 700, whiteSpace: 'nowrap' }} title="Temperature">Temp. (°C)</th>
+                                <th style={{ padding: '8px 10px', fontWeight: 700, whiteSpace: 'nowrap' }} title="Salinity / EC">Sal. (EC)</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {fsHistory.map((row, idx) => {
+                                const s = soilScalarsFromSnapshot(row.soil_snapshot);
+                                const started = row.started_at || row.created_at;
+                                const ended = row.ended_at;
+                                const activeRow = !ended;
+                                const soilDate = s?.received_at || started;
+                                return (
+                                  <tr key={`crop-history-${started || idx}-${idx}`} style={{ borderTop: '1px solid #eee' }}>
+                                    <td style={{ padding: '8px 10px', color: '#2e3a28', whiteSpace: 'nowrap', fontWeight: 600 }}>{farmDisplayName}</td>
+                                    <td style={{ padding: '8px 10px', color: '#2e3a28', whiteSpace: 'nowrap' }}>{farmerName}</td>
+                                    <td style={{ padding: '8px 10px', color: '#2e3a28', whiteSpace: 'nowrap' }}>{fmtShort(started)}</td>
+                                    <td style={{ padding: '8px 10px', fontWeight: 600, color: '#2e3a28', whiteSpace: 'nowrap' }}>{sessionCropLabel(row)}</td>
+                                    <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>
+                                      {activeRow ? (
+                                        <span style={{ fontWeight: 700, color: '#2d6a4f' }}>Active</span>
+                                      ) : (
+                                        <span style={{ color: '#6a7a60' }}>Ended</span>
+                                      )}
+                                    </td>
+                                    <td style={{ padding: '8px 10px', color: '#2e3a28', whiteSpace: 'nowrap' }}>
+                                      {activeRow ? '—' : fmtShort(ended)}
+                                    </td>
+                                    <td style={{ padding: '8px 10px', color: '#6a7a60', whiteSpace: 'nowrap' }}>{fmtShort(soilDate)}</td>
+                                    <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>{s?.nitrogen ?? '—'}</td>
+                                    <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>{s?.phosphorus ?? '—'}</td>
+                                    <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>{s?.potassium ?? '—'}</td>
+                                    <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>{s?.ph ?? '—'}</td>
+                                    <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>{s?.moisture != null ? `${s.moisture}%` : '—'}</td>
+                                    <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>{s?.temperature != null ? `${s.temperature}°` : '—'}</td>
+                                    <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>{s?.salinity ?? '—'}</td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
                         </div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: '#4a5a40' }}>No Soil Data Available</div>
-                        <div style={{ fontSize: 11, color: '#8a9880', marginTop: 4 }}>A soil test has not been recorded for this farm yet.</div>
                       </div>
                     )}
                   </div>

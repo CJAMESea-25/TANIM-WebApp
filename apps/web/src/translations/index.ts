@@ -1,11 +1,11 @@
 export const translations = {
   en: {
     // App Title
-    appTitle: 'CropWise',
+    appTitle: 'TANIM',
     subtitle: 'Multicropping Assistant',
     
     // Login Page
-    loginTitle: 'Welcome to CropWise',
+    loginTitle: 'Welcome to TANIM',
     loginSubtitle: 'Your intelligent partner for sustainable multicropping',
     farmerTab: 'Farmer',
     adminTab: 'Admin',
@@ -217,11 +217,11 @@ export const translations = {
   
   fil: {
     // App Title
-    appTitle: 'CropWise',
+    appTitle: 'TANIM',
     subtitle: 'Katulong sa Multicropping',
     
     // Login Page
-    loginTitle: 'Maligayang pagdating sa CropWise',
+    loginTitle: 'Maligayang pagdating sa TANIM',
     loginSubtitle: 'Ang inyong matalinong kasosyo para sa sustainable na multicropping',
     farmerTab: 'Magsasaka',
     adminTab: 'Admin',

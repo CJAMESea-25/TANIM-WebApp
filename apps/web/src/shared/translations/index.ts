@@ -3,10 +3,10 @@ export const translations = {
     // App Title
     appTitle: 'CropWise',
     subtitle: 'Multicropping Assistant',
-    
+
     // Login Page
     loginTitle: 'Welcome to CropWise',
-    loginSubtitle: 'Your intelligent partner for sustainable multicropping',
+    loginSubtitle: 'Your intelligent partner for sustainable farming',
     farmerTab: 'Farmer',
     adminTab: 'Admin',
     username: 'Username',
@@ -15,14 +15,14 @@ export const translations = {
     showPassword: 'Show Password',
     hidePassword: 'Hide Password',
     demoCredentials: 'Demo Credentials',
-    demoNote: 'This is a demonstration application for multicropping management.',
+    demoNote: 'This is a demonstration application for farming management.',
     invalidCredentials: 'Invalid username or password',
-    
+
     // Navigation
     logout: 'Logout',
     refreshData: 'Refresh Data',
     exportData: 'Export Data',
-    
+
     // Farm Interface
     welcomeMessage: 'Welcome',
     noFarms: 'You have not been assigned any farms yet. Please contact your administrator.',
@@ -33,7 +33,7 @@ export const translations = {
     recommendations: 'AI Recommendations',
     noRecommendations: 'No recommendations available for the selected farm.',
     generateRecommendations: 'Generate Recommendations',
-    
+
     // Soil Health
     nitrogen: 'Nitrogen',
     phosphorus: 'Phosphorus',
@@ -45,7 +45,7 @@ export const translations = {
     fair: 'Fair',
     poor: 'Poor',
     organicMatter: 'Organic Matter',
-    
+
     // Weather
     temperature: 'Temperature',
     humidity: 'Humidity',
@@ -58,7 +58,7 @@ export const translations = {
     wednesday: 'Wednesday',
     thursday: 'Thursday',
     friday: 'Friday',
-    
+
     // Recommendations
     urgencyHigh: 'High',
     urgencyMedium: 'Medium',
@@ -71,12 +71,12 @@ export const translations = {
     learnMore: 'Learn More',
     listen: 'Listen',
     urgency: 'Urgency',
-    
+
     // Crop Types
     rotation: 'Crop Rotation',
     intercropping: 'Intercropping',
     companion: 'Companion Planting',
-    
+
     // Admin Dashboard
     adminDashboard: 'Admin Dashboard',
     totalFarms: 'Total Farms',
@@ -93,13 +93,13 @@ export const translations = {
     currentWeather: 'Current Weather Conditions',
     welcomeAdmin: 'Welcome to the Admin Dashboard',
     manageCrops: 'Manage your agricultural data and monitor farm performance',
-    
+
     // Farmer Management
     farmerName: 'Farmer Name',
     assignedFarms: 'Assigned Farms',
     phone: 'Phone',
     language: 'Language',
-    
+
     // Crop Rules Management
     addNewRule: 'Add New Crop Rule',
     currentCrop: 'Current Crop',
@@ -107,7 +107,7 @@ export const translations = {
     condition: 'Condition',
     active: 'Active',
     actions: 'Actions',
-    
+
     // Data Management
     realTimeSoilData: 'Real-time Soil Data',
     farmName: 'Farm Name',
@@ -118,12 +118,12 @@ export const translations = {
     dataSource: 'Data Source',
     lastSync: 'Last Sync',
     status: 'Status',
-    
+
     // Units
     hectares: 'hectares',
     celsius: '°C',
     percent: '%',
-    
+
     // Multicropping AI
     multicroppingAI: 'Multicropping AI',
     selectCrop: 'Select a crop to find compatible neighbors',
@@ -131,7 +131,7 @@ export const translations = {
     avoidNeighbors: 'Avoid These',
     findCompatible: 'Find Compatible Crops',
     neighborBenefits: 'Benefits',
-    
+
     // Crop Names (English)
     tomato: 'Tomato',
     beans: 'Beans',
@@ -153,16 +153,16 @@ export const translations = {
     kale: 'Kale',
     eggplant: 'Eggplant',
     okra: 'Okra',
-    
+
     // Farm Map
     farmLocations: 'Farm Locations',
-    
+
     // Soil Types
     clay: 'Clay',
     loam: 'Loam',
     sandy: 'Sandy',
     silt: 'Silt',
-    
+
     // Common
     loading: 'Loading...',
     error: 'Error',
@@ -175,7 +175,7 @@ export const translations = {
     update: 'Update',
     close: 'Close',
     confirm: 'Confirm',
-    
+
     // Demo credentials
     demoFarmerUsername: 'juan.farmer',
     demoFarmerPassword: 'farmer123',
@@ -214,12 +214,12 @@ export const translations = {
     manualRuleDescription: "Create custom rules to override AI recommendations when needed.",
     addManualRule: "Add Manual Rule"
   },
-  
+
   fil: {
     // App Title
     appTitle: 'CropWise',
     subtitle: 'Katulong sa Multicropping',
-    
+
     // Login Page
     loginTitle: 'Maligayang pagdating sa CropWise',
     loginSubtitle: 'Ang inyong matalinong kasosyo para sa sustainable na multicropping',
@@ -233,12 +233,12 @@ export const translations = {
     demoCredentials: 'Demo na mga Kredensyal',
     demoNote: 'Ito ay isang demonstration application para sa pamamahala ng multicropping.',
     invalidCredentials: 'Hindi tamang username o password',
-    
+
     // Navigation
     logout: 'Mag-logout',
     refreshData: 'I-refresh ang Data',
     exportData: 'I-export ang Data',
-    
+
     // Farm Interface
     welcomeMessage: 'Maligayang pagdating',
     noFarms: 'Wala kayong nakatalagang mga sakahan. Makipag-ugnayan sa inyong administrator.',
@@ -249,7 +249,7 @@ export const translations = {
     recommendations: 'AI na mga Rekomendasyon',
     noRecommendations: 'Walang available na rekomendasyon para sa napiling sakahan.',
     generateRecommendations: 'Bumuo ng mga Rekomendasyon',
-    
+
     // Soil Health
     nitrogen: 'Nitrogen',
     phosphorus: 'Phosphorus',
@@ -261,7 +261,7 @@ export const translations = {
     fair: 'Katamtaman',
     poor: 'Mahina',
     organicMatter: 'Organic Matter',
-    
+
     // Weather
     temperature: 'Temperatura',
     humidity: 'Halumigmig',
@@ -274,7 +274,7 @@ export const translations = {
     wednesday: 'Miyerkules',
     thursday: 'Huwebes',
     friday: 'Biyernes',
-    
+
     // Recommendations
     urgencyHigh: 'Mataas',
     urgencyMedium: 'Katamtaman',
@@ -287,12 +287,12 @@ export const translations = {
     learnMore: 'Matuto pa',
     listen: 'Makinig',
     urgency: 'Pagkakagipit',
-    
+
     // Crop Types
     rotation: 'Pag-ikot ng Pananim',
     intercropping: 'Intercropping',
     companion: 'Companion Planting',
-    
+
     // Admin Dashboard
     adminDashboard: 'Admin Dashboard',
     totalFarms: 'Kabuuang Sakahan',
@@ -309,13 +309,13 @@ export const translations = {
     currentWeather: 'Kasalukuyang Kondisyon ng Panahon',
     welcomeAdmin: 'Maligayang pagdating sa Admin Dashboard',
     manageCrops: 'Pamahalaan ang inyong agricultural data at subaybayan ang performance ng sakahan',
-    
+
     // Farmer Management
     farmerName: 'Pangalan ng Magsasaka',
     assignedFarms: 'Nakatalagang mga Sakahan',
     phone: 'Telepono',
     language: 'Wika',
-    
+
     // Crop Rules Management
     addNewRule: 'Magdagdag ng Bagong Patakaran ng Pananim',
     currentCrop: 'Kasalukuyang Pananim',
@@ -323,7 +323,7 @@ export const translations = {
     condition: 'Kondisyon',
     active: 'Aktibo',
     actions: 'Mga Aksyon',
-    
+
     // Data Management
     realTimeSoilData: 'Real-time na Data ng Lupa',
     farmName: 'Pangalan ng Sakahan',
@@ -334,12 +334,12 @@ export const translations = {
     dataSource: 'Pinagkunan ng Data',
     lastSync: 'Huling Sync',
     status: 'Estado',
-    
+
     // Units
     hectares: 'ektarya',
     celsius: '°C',
     percent: '%',
-    
+
     // Multicropping AI
     multicroppingAI: 'Multicropping AI',
     selectCrop: 'Pumili ng pananim upang makita ang mga compatible na kapitbahay',
@@ -347,7 +347,7 @@ export const translations = {
     avoidNeighbors: 'Iwasang mga Ito',
     findCompatible: 'Hanapin ang Compatible na mga Pananim',
     neighborBenefits: 'Mga Benepisyo',
-    
+
     // Crop Names (Filipino)
     tomato: 'Kamatis',
     beans: 'Sitaw',
@@ -369,16 +369,16 @@ export const translations = {
     kale: 'Kale',
     eggplant: 'Talong',
     okra: 'Okra',
-    
+
     // Farm Map
     farmLocations: 'Mga Lokasyon ng Sakahan',
-    
+
     // Soil Types
     clay: 'Luad',
     loam: 'Loam',
     sandy: 'Buhangin',
     silt: 'Silt',
-    
+
     // Common
     loading: 'Naglo-load...',
     error: 'Mali',
@@ -391,7 +391,7 @@ export const translations = {
     update: 'I-update',
     close: 'Isara',
     confirm: 'Kumpirmahin',
-    
+
     // Demo credentials
     demoFarmerUsername: 'juan.farmer',
     demoFarmerPassword: 'farmer123',

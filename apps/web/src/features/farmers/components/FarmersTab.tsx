@@ -54,17 +54,31 @@ const StatusBadge = ({ status }: { status: string }) => {
 
 const FarmersRegistryView = ({
   farms, farmers, searchQuery = '', onAddFarmer, onAddFarm,
-  onEditFarmer, onDeleteFarmer
+  onEditFarmer, onDeleteFarmer,
+  initialViewFarmerId, onInitialViewConsumed
 }: {
   farms: any[]; farmers: any[]; searchQuery?: string;
   onAddFarmer: () => void; onAddFarm: (id: string) => void;
   onEditFarmer: (farmer: any) => void; onDeleteFarmer: (farmer: any) => void;
+  initialViewFarmerId?: string | null; onInitialViewConsumed?: () => void;
 }) => {
   const [page, setPage] = React.useState(1);
   const rowsPerPage = 8;
   const [statusFilter, setStatusFilter] = React.useState('all');
   const [sortBy, setSortBy] = React.useState('name');
   const [viewingFarmer, setViewingFarmer] = React.useState<any>(null);
+
+  React.useEffect(() => {
+    if (initialViewFarmerId && farmers.length > 0) {
+      const target = farmers.find(
+        (f: any) => (f.farmer_id || f.id) === initialViewFarmerId
+      );
+      if (target) {
+        setViewingFarmer(target);
+        if (onInitialViewConsumed) onInitialViewConsumed();
+      }
+    }
+  }, [initialViewFarmerId, farmers, onInitialViewConsumed]);
 
   const handleExportCSV = () => {
     const headers = [
@@ -433,6 +447,8 @@ export interface FarmersTabProps {
   handleAddFarmSubmit: () => void;
   onEditFarmer: (farmer: any) => void;
   onDeleteFarmer: (farmer: any) => void;
+  initialViewFarmerId?: string | null;
+  onInitialViewConsumed?: () => void;
 }
 
 export const FarmersTab = ({
@@ -443,6 +459,7 @@ export const FarmersTab = ({
   selectedFarmerId, setSelectedFarmerId,
   newFarm, setNewFarm, isAddingFarm, handleAddFarmSubmit,
   onEditFarmer, onDeleteFarmer,
+  initialViewFarmerId, onInitialViewConsumed
 }: FarmersTabProps) => (
   <div>
     {/* Register New Farmer Dialog */}
@@ -547,6 +564,8 @@ export const FarmersTab = ({
       onAddFarm={(id: string) => { setSelectedFarmerId(id); setIsAddFarmOpen(true); }}
       onEditFarmer={onEditFarmer}
       onDeleteFarmer={onDeleteFarmer}
+      initialViewFarmerId={initialViewFarmerId}
+      onInitialViewConsumed={onInitialViewConsumed}
     />
   </div>
 );

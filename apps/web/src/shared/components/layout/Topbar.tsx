@@ -10,6 +10,8 @@ interface TopbarProps {
   farms?: any[];
   farmers?: any[];
   onNavigateApp?: (page: any) => void;
+  onNavigateToFarm?: (farm: any) => void;
+  onNavigateToFarmer?: (farmer: any) => void;
 }
 
 export const Topbar: React.FC<TopbarProps> = ({
@@ -21,6 +23,8 @@ export const Topbar: React.FC<TopbarProps> = ({
   farms = [],
   farmers = [],
   onNavigateApp,
+  onNavigateToFarm,
+  onNavigateToFarmer,
 }) => {
   const [isFocused, setIsFocused] = React.useState(false);
 
@@ -73,11 +77,12 @@ export const Topbar: React.FC<TopbarProps> = ({
                   <div style={{ padding: '12px 14px', borderBottom: '1px solid #f0ece4' }}>
                     <div style={{ fontSize: 10, fontWeight: 700, color: '#8aaa7a', textTransform: 'uppercase', marginBottom: 8 }}>Farms</div>
                     {matchedFarms.map(f => (
-                      <div key={f.farm_id || f.id} onClick={() => { onNavigateApp?.('farms'); onSearchChange?.(''); }} style={{
+                      <div key={f.farm_id || f.id} onClick={() => { onNavigateToFarm ? onNavigateToFarm(f) : onNavigateApp?.('farms'); onSearchChange?.(''); }} style={{
                         padding: '8px 12px', borderRadius: 6, cursor: 'pointer', transition: 'background 0.15s'
                       }} onMouseEnter={e => e.currentTarget.style.background = '#f4fbf0'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                         <div style={{ fontSize: 13, fontWeight: 600, color: '#2e3a28' }}>{f.farm_name || f.name}</div>
-                        <div style={{ fontSize: 11, color: '#9aaa8a' }}>
+                        <div style={{ fontSize: 11, color: '#9aaa8a', display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <span>🌾</span>
                           {(() => {
                              const raw = f.farm_location || f.location;
                              if (typeof raw === 'object' && raw !== null) return raw.address || raw.name || 'Unknown Location';
@@ -92,7 +97,7 @@ export const Topbar: React.FC<TopbarProps> = ({
                   <div style={{ padding: '12px 14px' }}>
                     <div style={{ fontSize: 10, fontWeight: 700, color: '#8aaa7a', textTransform: 'uppercase', marginBottom: 8 }}>Farmers</div>
                     {matchedFarmers.map(f => (
-                      <div key={f.farmer_id || f.id} onClick={() => { onNavigateApp?.('farmers'); onSearchChange?.(''); }} style={{
+                      <div key={f.farmer_id || f.id} onClick={() => { onNavigateToFarmer ? onNavigateToFarmer(f) : onNavigateApp?.('farmers'); onSearchChange?.(''); }} style={{
                         padding: '8px 12px', borderRadius: 6, cursor: 'pointer', transition: 'background 0.15s'
                       }} onMouseEnter={e => e.currentTarget.style.background = '#f4fbf0'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                         <div style={{ fontSize: 13, fontWeight: 600, color: '#2e3a28' }}>{f.username || f.name || f.first_name}</div>

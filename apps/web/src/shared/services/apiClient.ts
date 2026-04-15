@@ -87,3 +87,27 @@ export async function apiDelete<T = any>(endpoint: string, includeAuth = true): 
     });
     return handleResponse<T>(response);
 }
+
+export async function apiDeleteAdmin<T = any>(endpoint: string): Promise<T> {
+    const serviceKey = ENV.SUPABASE_SERVICE_KEY;
+    if (!serviceKey) {
+        return apiDelete<T>(endpoint);
+    }
+    const response = await fetch(`${BASE_URL}${endpoint}`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+            'apikey': serviceKey,
+            'Authorization': `Bearer ${serviceKey}`,
+            'Prefer': 'return=minimal',
+        },
+    });
+
+    if (response.status === 204 || response.ok) return {} as T;
+    let errorMessage = `Admin DELETE Error: ${response.status} ${response.statusText}`;
+    try {
+        const body = await response.json();
+        if (body?.message) errorMessage = body.message;
+    } catch { /* ignore */ }
+    throw new Error(errorMessage);
+}

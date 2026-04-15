@@ -144,6 +144,10 @@ export interface FarmsTabProps {
   handleAddFarmSubmit: () => void;
   selectedFarmerId: string | null;
   setSelectedFarmerId: (v: string | null) => void;
+  /** Farm ID to deep-link open immediately (from global search) */
+  initialViewFarmId?: string | null;
+  /** Called once the initial-view modal has been triggered, to reset the parent */
+  onInitialViewConsumed?: () => void;
 }
 
 export const FarmsTab = ({
@@ -151,6 +155,8 @@ export const FarmsTab = ({
   isAddFarmOpen, setIsAddFarmOpen,
   newFarm, setNewFarm, isAddingFarm, handleAddFarmSubmit,
   selectedFarmerId, setSelectedFarmerId,
+  initialViewFarmId,
+  onInitialViewConsumed,
 }: FarmsTabProps) => {
   const [page, setPage] = React.useState(1);
   const rowsPerPage = 10;
@@ -165,6 +171,19 @@ export const FarmsTab = ({
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [deleteError, setDeleteError] = React.useState('');
   const [viewingFarm, setViewingFarm] = React.useState<any>(null);
+
+  // Auto-open modal when navigated from global search
+  React.useEffect(() => {
+    if (!initialViewFarmId || farms.length === 0) return;
+    const target = farms.find(
+      (f: any) => (f.farm_id || f.id) === initialViewFarmId
+    );
+    if (target) {
+      setViewingFarm(target);
+      onInitialViewConsumed?.();
+    }
+  }, [initialViewFarmId, farms]);
+
   const [farmSessionState, setFarmSessionState] = React.useState<{
     active: FarmingSessionRow | null;
     history: FarmingSessionRow[];

@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPatch, apiDelete } from '@/shared/services/apiClient';
+import { apiGet, apiPost, apiPatch, apiDelete, apiDeleteAdmin } from '@/shared/services/apiClient';
 
 // Actual farm table columns (from Supabase schema):
 //   farm_id, farmer_id, farm_name, farm_location, farm_measurement, created_at
@@ -72,3 +72,4 @@ export async function deleteFarm(farmId: string) {
     await apiDelete(`/farm?farm_id=eq.${farmId}`);
     return true;
 }
+

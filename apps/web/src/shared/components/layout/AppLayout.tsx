@@ -13,6 +13,8 @@ interface AppLayoutProps {
   onSearchChange?: (val: string) => void;
   farms?: any[];
   farmers?: any[];
+  onNavigateToFarm?: (farm: any) => void;
+  onNavigateToFarmer?: (farmer: any) => void;
   children: React.ReactNode;
 }
 
@@ -27,6 +29,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   onSearchChange,
   farms,
   farmers,
+  onNavigateToFarm,
+  onNavigateToFarmer,
   children,
 }) => {
   const isSuperAdmin = userName === 'superadmin';
@@ -35,7 +39,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
     <div className="tanim-app-shell">
       <Sidebar activePage={activePage} onNavigate={onNavigate} onLogout={onLogout} isSuperAdmin={isSuperAdmin} />
       <div className="tanim-main-area">
-        <Topbar userName={userName} userRole={userRole} userAvatar={userAvatar} searchQuery={searchQuery} onSearchChange={onSearchChange} farms={farms} farmers={farmers} onNavigateApp={onNavigate} />
+        <Topbar userName={userName} userRole={userRole} userAvatar={userAvatar} searchQuery={searchQuery} onSearchChange={onSearchChange} farms={farms} farmers={farmers} onNavigateApp={onNavigate} onNavigateToFarm={onNavigateToFarm} onNavigateToFarmer={onNavigateToFarmer} />
         <main className="tanim-content">{children}</main>
       </div>
     </div>

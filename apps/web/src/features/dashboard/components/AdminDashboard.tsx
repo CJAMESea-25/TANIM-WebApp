@@ -122,16 +122,24 @@ const DashboardPage = ({
     }
   };
 
-  const latestFarm = farms[farms.length - 1];
-  const latestSoilTest = dbSoilTests[dbSoilTests.length - 1];
-  const latestFarmName = latestFarm?.farm_name || latestFarm?.name;
-  const latestField = latestFarm?.farmLocation;
-  const soilType = latestFarm?.soilType
-    ? `${latestFarm.soilType.charAt(0).toUpperCase()}${latestFarm.soilType.slice(1)} Soil`
-    : 'Loamy Soil';
-  const testDate = latestSoilTest?.created_at
-    ? new Date(latestSoilTest.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-    : 'Oct 24, 2023';
+  // ── Recent activity data ──
+  const latestAddedFarm = [...farms].sort(
+    (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+  )[0];
+
+  const latestSoilTest = [...dbSoilTests].sort(
+    (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+  )[0];
+  const latestTestedFarm = latestSoilTest
+    ? farms.find((f: any) => f.farm_id === latestSoilTest.farm_id || f.id === latestSoilTest.farm_id)
+    : null;
+
+  const latestAddedFarmer = [...farmers].sort(
+    (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+  )[0];
+
+  const fmtDate = (iso?: string | null) =>
+    iso ? new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
 
   return (
     <div style={{ padding: '32px 36px', background: '#f0ede4', minHeight: '100vh' }}>
@@ -152,12 +160,12 @@ const DashboardPage = ({
             disabled={isExportingSessions}
             onClick={() => void handleExportCSV()}
             style={{
-            display: 'inline-flex', alignItems: 'center', gap: 7, padding: '10px 18px',
-            borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: isExportingSessions ? 'wait' : 'pointer',
-            background: '#fff', border: '1.5px solid #d5cfc5', color: '#4a5a40',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-            opacity: isExportingSessions ? 0.7 : 1,
-          }}
+              display: 'inline-flex', alignItems: 'center', gap: 7, padding: '10px 18px',
+              borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: isExportingSessions ? 'wait' : 'pointer',
+              background: '#fff', border: '1.5px solid #d5cfc5', color: '#4a5a40',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+              opacity: isExportingSessions ? 0.7 : 1,
+            }}
           >
             <Download size={14} /> {isExportingSessions ? 'Exporting…' : 'Export Report'}
           </button>
@@ -209,54 +217,139 @@ const DashboardPage = ({
         </div>
       </div>
 
-      {/* ── Latest Farm Tested ── */}
-      <div style={{
-        background: '#fff', borderRadius: 18, overflow: 'hidden',
-        display: 'grid', gridTemplateColumns: '340px 1fr',
-        boxShadow: '0 2px 12px rgba(0,0,0,0.06)', minHeight: 220,
-      }}>
-        <div style={{ overflow: 'hidden', position: 'relative', background: 'linear-gradient(135deg,#a3b18a,#3a5a40)' }}>
-          <img
-            src="/farm_hero.png"
-            alt="Farm"
-            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-            onError={e => { e.currentTarget.style.display = 'none'; }}
-          />
+      {/* ── Recent Activity ── */}
+      <div style={{ marginBottom: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#3a5a40', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 14 }}>
+          Recent Activity
         </div>
-        <div style={{ padding: '30px 36px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 14 }}>
-            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#4caf50' }} />
-            <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.1em', color: '#5a7a50', textTransform: 'uppercase' }}>Latest Farm Tested</span>
-          </div>
-          <h2 style={{ fontSize: 22, fontWeight: 800, color: '#1e2a1e', margin: '0 0 22px', lineHeight: 1.35 }}>
-            <span style={{ color: '#3a8a50' }}>{latestFarmName}'s</span>{' '}
-            {latestField}.
-          </h2>
-          <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#f5f0e8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <Tractor size={18} color="#5a7a50" strokeWidth={1.8} />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+
+          {/* Latest Added Farm */}
+          <div style={{ background: '#fff', borderRadius: 16, padding: '20px 22px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: '#eaf4ea', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Tractor size={17} color="#3a5a40" />
               </div>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#2e3a28' }}>{latestFarmName}</div>
-                <div style={{ fontSize: 11, color: '#8a9880', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Farm Name</div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#8a9880', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Latest Added Farm</div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: '#1e2a1e', marginTop: 1, lineHeight: 1.2 }}>
+                  {latestAddedFarm ? (latestAddedFarm.farm_name || latestAddedFarm.name || 'Unnamed Farm') : 'No farms yet'}
+                </div>
               </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#f5f0e8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <Calendar size={18} color="#5a7a50" strokeWidth={1.8} />
+            {latestAddedFarm && (
+              <>
+                <div style={{ borderTop: '1px solid #f0ede4' }} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                    <span style={{ color: '#8a9880' }}>Location</span>
+                    <span style={{ fontWeight: 600, color: '#2e3a28', textAlign: 'right', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {latestAddedFarm.farm_location || '—'}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                    <span style={{ color: '#8a9880' }}>Size</span>
+                    <span style={{ fontWeight: 600, color: '#2e3a28' }}>{latestAddedFarm.farm_measurement ? `${latestAddedFarm.farm_measurement} ha` : '—'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                    <span style={{ color: '#8a9880' }}>Added</span>
+                    <span style={{ fontWeight: 600, color: '#3a5a40' }}>{fmtDate(latestAddedFarm.created_at)}</span>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Latest Soil-Tested Farm */}
+          <div style={{ background: '#fff', borderRadius: 16, padding: '20px 22px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: '#fef9ec', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Thermometer size={17} color="#b67c2a" />
               </div>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#2e3a28' }}>Tested: {testDate}</div>
-                <div style={{ fontSize: 11, color: '#8a9880', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Date of Test</div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#8a9880', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Latest Soil Test</div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: '#1e2a1e', marginTop: 1, lineHeight: 1.2 }}>
+                  {latestTestedFarm ? (latestTestedFarm.farm_name || latestTestedFarm.name || 'Unnamed Farm') : (latestSoilTest ? 'Unknown Farm' : 'No tests yet')}
+                </div>
               </div>
             </div>
+            {latestSoilTest && (
+              <>
+                <div style={{ borderTop: '1px solid #f0ede4' }} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                    <span style={{ color: '#8a9880' }}>N / P / K</span>
+                    <span style={{ fontWeight: 600, color: '#2e3a28' }}>
+                      {latestSoilTest.nitrogen ?? '—'} / {latestSoilTest.phosphorus ?? '—'} / {latestSoilTest.potassium ?? '—'}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                    <span style={{ color: '#8a9880' }}>pH</span>
+                    <span style={{ fontWeight: 600, color: '#2e3a28' }}>{latestSoilTest.ph ?? '—'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                    <span style={{ color: '#8a9880' }}>Temperature</span>
+                    <span style={{ fontWeight: 600, color: '#2e3a28' }}>{latestSoilTest.temperature != null ? `${latestSoilTest.temperature} °C` : '—'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                    <span style={{ color: '#8a9880' }}>Moisture</span>
+                    <span style={{ fontWeight: 600, color: '#2e3a28' }}>{latestSoilTest.moisture != null ? `${latestSoilTest.moisture}%` : '—'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                    <span style={{ color: '#8a9880' }}>Salinity (EC)</span>
+                    <span style={{ fontWeight: 600, color: '#2e3a28' }}>{latestSoilTest.salinity ?? '—'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                    <span style={{ color: '#8a9880' }}>Tested</span>
+                    <span style={{ fontWeight: 600, color: '#b67c2a' }}>{fmtDate(latestSoilTest.created_at)}</span>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
+
+          {/* Latest Added Farmer */}
+          <div style={{ background: '#fff', borderRadius: 16, padding: '20px 22px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Users size={17} color="#4a5ab0" />
+              </div>
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#8a9880', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Latest Added Farmer</div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: '#1e2a1e', marginTop: 1, lineHeight: 1.2 }}>
+                  {latestAddedFarmer
+                    ? (`${latestAddedFarmer.first_name || ''} ${latestAddedFarmer.last_name || ''}`.trim() || latestAddedFarmer.username || 'Unnamed')
+                    : 'No farmers yet'}
+                </div>
+              </div>
+            </div>
+            {latestAddedFarmer && (
+              <>
+                <div style={{ borderTop: '1px solid #f0ede4' }} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                    <span style={{ color: '#8a9880' }}>Username</span>
+                    <span style={{ fontWeight: 600, color: '#2e3a28' }}>@{latestAddedFarmer.username || '—'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                    <span style={{ color: '#8a9880' }}>Phone</span>
+                    <span style={{ fontWeight: 600, color: '#2e3a28' }}>{latestAddedFarmer.phone_number || '—'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                    <span style={{ color: '#8a9880' }}>Joined</span>
+                    <span style={{ fontWeight: 600, color: '#4a5ab0' }}>{fmtDate(latestAddedFarmer.created_at)}</span>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
         </div>
       </div>
     </div>
   );
 };
+
 
 // ─── Admin Management page points to the real SuperAdminPage ────────────────────────────
 import { SuperAdminPage } from '@/features/profile/components/SuperAdminPage';
@@ -314,6 +407,8 @@ export const AdminDashboard = () => {
 
   const [activePage, setActivePage] = React.useState<SidebarPage>('dashboard');
   const [searchQuery, setSearchQuery] = React.useState('');
+  const [pendingFarmModal, setPendingFarmModal] = React.useState<any>(null);
+  const [pendingFarmerModal, setPendingFarmerModal] = React.useState<any>(null);
 
   // ── Farmer / Farm dialog state ──
   const [isAddFarmerOpen, setIsAddFarmerOpen] = React.useState(false);
@@ -479,6 +574,19 @@ export const AdminDashboard = () => {
     } finally { setIsDeletingFarmer(false); }
   };
 
+  // ── Navigate-to-farm/farmer from global search ──
+  const handleNavigateToFarm = React.useCallback((farm: any) => {
+    setPendingFarmModal(farm);
+    setActivePage('farms');
+    setSearchQuery('');
+  }, []);
+
+  const handleNavigateToFarmer = React.useCallback((farmer: any) => {
+    setPendingFarmerModal(farmer);
+    setActivePage('farmers');
+    setSearchQuery('');
+  }, []);
+
   // ── Page router ──
   const renderPage = () => {
     const openAddFarmer = () => setIsAddFarmerOpen(true);
@@ -495,6 +603,8 @@ export const AdminDashboard = () => {
             newFarm={newFarm} setNewFarm={setNewFarm}
             isAddingFarm={isAddingFarm} handleAddFarmSubmit={handleAddFarmSubmit}
             selectedFarmerId={selectedFarmerId} setSelectedFarmerId={setSelectedFarmerId}
+            initialViewFarmId={pendingFarmModal?.farm_id || pendingFarmModal?.id || null}
+            onInitialViewConsumed={() => setPendingFarmModal(null)}
           />
         );
 
@@ -512,6 +622,8 @@ export const AdminDashboard = () => {
             isAddingFarm={isAddingFarm} handleAddFarmSubmit={handleAddFarmSubmit}
             onEditFarmer={onEditFarmerClick}
             onDeleteFarmer={onDeleteFarmerClick}
+            initialViewFarmerId={pendingFarmerModal?.farmer_id || pendingFarmerModal?.id || null}
+            onInitialViewConsumed={() => setPendingFarmerModal(null)}
           />
         );
 
@@ -543,6 +655,8 @@ export const AdminDashboard = () => {
       onSearchChange={setSearchQuery}
       farms={farms}
       farmers={farmers}
+      onNavigateToFarm={handleNavigateToFarm}
+      onNavigateToFarmer={handleNavigateToFarmer}
     >
       {renderPage()}
 

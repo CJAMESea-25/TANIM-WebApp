@@ -22,7 +22,33 @@ const farmIcon = new L.DivIcon({
   popupAnchor: [0, -38],
 });
 
-// Auto-fit map to show all farm markers
+/**
+ * Full Bukidnon province frame (SW–NE): Damulog/Kibawe south → Claveria/Malitbog north;
+ * Talakag/Baungon/Kalilangan west → Cabanglasan/San Fernando east. Matches typical provincial map extent.
+ */
+const BUKIDNON_BOUNDS = L.latLngBounds(
+  [7.38, 124.38] as L.LatLngTuple,
+  [8.72, 125.46] as L.LatLngTuple
+);
+
+/** Min zoom = widest zoom where this box still fits in the panel (cannot zoom out past province view) */
+const BukidnonMinZoom = () => {
+  const map = useMap();
+  useEffect(() => {
+    const applyMinZoom = () => {
+      const z = map.getBoundsZoom(BUKIDNON_BOUNDS, false);
+      map.setMinZoom(z);
+    };
+    map.whenReady(applyMinZoom);
+    map.on('resize', applyMinZoom);
+    return () => {
+      map.off('resize', applyMinZoom);
+    };
+  }, [map]);
+  return null;
+};
+
+// Auto-fit map to show all farm markers (map maxBounds keeps view inside Bukidnon)
 const FitBounds = ({ positions }: { positions: [number, number][] }) => {
   const map = useMap();
   useEffect(() => {
@@ -73,8 +99,8 @@ export const FarmMap: React.FC<FarmMapProps> = ({ farms = [], farmers = [], soil
 
   const positions = markers.map(m => m.pos);
 
-  // Default center: Cagayan de Oro, Northern Mindanao, PH
-  const defaultCenter: [number, number] = [8.4700, 124.6500];
+  // Default center: Malaybalay, Bukidnon
+  const defaultCenter: [number, number] = [8.158, 125.125];
 
   const soilColor = (soil: string) => {
     if (soil === 'clay')  return '#f5a623';
@@ -102,7 +128,10 @@ export const FarmMap: React.FC<FarmMapProps> = ({ farms = [], farmers = [], soil
           zoom={12}
           style={{ width: '100%', height: '100%' }}
           scrollWheelZoom={true}
+          maxBounds={BUKIDNON_BOUNDS}
+          maxBoundsViscosity={1}
         >
+          <BukidnonMinZoom />
           <TileLayer
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'

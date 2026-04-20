@@ -52,10 +52,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate, onLogo
   });
   return (
     <aside className="tanim-sidebar">
-      {/* Logo */}
       <div className="tanim-sidebar-logo">
-        <div className="tanim-sidebar-logo-icon">
-          <Tractor size={22} strokeWidth={2} />
+        <div style={{ width: 38, height: 38, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <img src="/tanim_logo.png" alt="TANIM Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
         </div>
         <div className="tanim-sidebar-logo-text">
           <span className="tanim-sidebar-logo-title">TANIM</span>

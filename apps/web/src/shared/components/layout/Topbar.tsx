@@ -12,6 +12,7 @@ interface TopbarProps {
   onNavigateApp?: (page: any) => void;
   onNavigateToFarm?: (farm: any) => void;
   onNavigateToFarmer?: (farmer: any) => void;
+  dbSoilTests?: any[];
 }
 
 export const Topbar: React.FC<TopbarProps> = ({
@@ -22,11 +23,13 @@ export const Topbar: React.FC<TopbarProps> = ({
   onSearchChange,
   farms = [],
   farmers = [],
+  dbSoilTests = [],
   onNavigateApp,
   onNavigateToFarm,
   onNavigateToFarmer,
 }) => {
   const [isFocused, setIsFocused] = React.useState(false);
+  const [showNotifs, setShowNotifs] = React.useState(false);
 
   const matchedFarms = farms.filter(f => {
      if (!searchQuery) return false;
@@ -46,6 +49,22 @@ export const Topbar: React.FC<TopbarProps> = ({
 
   const hasResults = matchedFarms.length > 0 || matchedFarmers.length > 0;
   const showDropdown = isFocused && searchQuery.length > 0;
+
+  const notifications = React.useMemo(() => {
+    const list: any[] = [];
+    farms.forEach(f => {
+      if (f.created_at) list.push({ icon: '🌾', model: 'Farm', label: `New farm added: ${f.farm_name || 'Unnamed Farm'}`, date: new Date(f.created_at), payload: f, type: 'farm' });
+    });
+    farmers.forEach(f => {
+      if (f.created_at) list.push({ icon: '🧑‍🌾', model: 'Farmer', label: `New farmer added: ${f.username || f.first_name || 'Unnamed'}`, date: new Date(f.created_at), payload: f, type: 'farmer' });
+    });
+    dbSoilTests.forEach(t => {
+      const farm = farms.find(f => f.farm_id === t.farm_id || f.id === t.farm_id);
+      const farmName = farm?.farm_name || `#${t.farm_id}`;
+      if (t.created_at) list.push({ icon: '🧪', model: 'Soil Test', label: `New soil test recorded for ${farmName}`, date: new Date(t.created_at), payload: farm, type: 'test' });
+    });
+    return list.sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 10);
+  }, [farms, farmers, dbSoilTests]);
 
   return (
     <header className="tanim-topbar">
@@ -118,12 +137,52 @@ export const Topbar: React.FC<TopbarProps> = ({
 
       {/* Right section */}
       <div className="tanim-topbar-right">
-        <button className="tanim-topbar-icon-btn" title="Notifications">
-          <Bell size={18} />
-        </button>
-        <button className="tanim-topbar-icon-btn" title="Help">
-          <HelpCircle size={18} />
-        </button>
+        <div style={{ position: 'relative' }}>
+          <button 
+            className="tanim-topbar-icon-btn" 
+            title="Notifications"
+            onClick={() => setShowNotifs(!showNotifs)}
+          >
+            <Bell size={18} />
+            {notifications.length > 0 && (
+              <span style={{ position: 'absolute', top: 6, right: 6, width: 8, height: 8, background: '#e53935', borderRadius: '50%' }} />
+            )}
+          </button>
+
+          {showNotifs && (
+            <div style={{
+              position: 'absolute', top: 'calc(100% + 8px)', right: 0, width: 320, background: '#fff', borderRadius: 12,
+              boxShadow: '0 8px 30px rgba(0,0,0,0.12)', border: '1px solid #e0dacf', overflow: 'hidden', zIndex: 1000
+            }}>
+              <div style={{ padding: '14px 16px', borderBottom: '1px solid #f0ece4', fontSize: 14, fontWeight: 700, color: '#2e3a28' }}>
+                Recent Notifications
+              </div>
+              <div style={{ maxHeight: 350, overflowY: 'auto' }}>
+                {notifications.length > 0 ? notifications.map((notif, idx) => (
+                  <div key={idx} style={{ padding: '12px 16px', borderBottom: '1px solid #f9f8f6', cursor: 'pointer', transition: 'background 0.15s' }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#f4fbf0'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    onClick={() => {
+                        if (notif.type === 'farmer' && onNavigateToFarmer) onNavigateToFarmer(notif.payload);
+                        if ((notif.type === 'farm' || notif.type === 'test') && onNavigateToFarm && notif.payload) onNavigateToFarm(notif.payload);
+                        setShowNotifs(false);
+                    }}
+                  >
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                      <div style={{ fontSize: 16 }}>{notif.icon}</div>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: '#3a5a40' }}>{notif.model}</div>
+                        <div style={{ fontSize: 13, color: '#2e3a28', marginTop: 2, lineHeight: 1.3 }}>{notif.label}</div>
+                        <div style={{ fontSize: 10, color: '#9aaa8a', marginTop: 4 }}>{notif.date.toLocaleString()}</div>
+                      </div>
+                    </div>
+                  </div>
+                )) : (
+                  <div style={{ padding: '24px', textAlign: 'center', color: '#8a9880', fontSize: 13 }}>No recent notifications</div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
 
         <div className="tanim-topbar-divider" />
 

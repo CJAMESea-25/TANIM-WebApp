@@ -655,6 +655,7 @@ export const AdminDashboard = () => {
       onSearchChange={setSearchQuery}
       farms={farms}
       farmers={farmers}
+      dbSoilTests={dbSoilTests}
       onNavigateToFarm={handleNavigateToFarm}
       onNavigateToFarmer={handleNavigateToFarmer}
     >

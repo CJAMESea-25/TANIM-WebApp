@@ -130,14 +130,16 @@ export const FarmMap: React.FC<FarmMapProps> = ({ farms = [], farmers = [], soil
   };
 
   return (
-    <div className="flex w-full min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:gap-4">
+    <div className="flex w-full min-w-0 flex-col gap-4 lg:flex-row lg:items-stretch lg:gap-4 lg:h-[calc(100vh-220px)] lg:min-h-[500px]">
       {/* Map container — below farm list on small screens (order-2); left column on lg+ */}
       <div
-        className="relative order-2 w-full min-h-0 flex-1 overflow-hidden rounded-2xl border-[1.5px] border-[#c4d8b0] shadow-[0_4px_24px_rgba(58,90,64,0.1)] lg:order-1"
+        className="relative order-2 w-full flex-1 overflow-hidden rounded-2xl border-[1.5px] border-[#c4d8b0] shadow-[0_4px_24px_rgba(58,90,64,0.1)] lg:order-1 lg:h-full"
         style={{
           minWidth: 0,
-          /* Taller on phones so the map is usable after scrolling past the list */
-          height: 'clamp(300px, min(62dvh, 560px), 520px)',
+          /* Default heights for smaller screens; on lg screens, Tailwind handles h-full. Vertical resize allowed to give user control. */
+          minHeight: '350px',
+          height: 'clamp(400px, 60vh, 800px)',
+          resize: 'vertical',
         }}
       >
         <MapContainer
@@ -227,7 +229,7 @@ export const FarmMap: React.FC<FarmMapProps> = ({ farms = [], farmers = [], soil
 
       {/* Side panel — shown first on small screens (order-1) so map sits below and stays visible when scrolled to */}
       <div
-        className="order-1 w-full max-h-[min(240px,38vh)] shrink-0 lg:order-2 lg:max-h-[min(520px,85vh)] lg:w-[240px]"
+        className="order-1 w-full max-h-[min(280px,40vh)] shrink-0 lg:order-2 lg:w-[280px] xl:w-[320px] lg:h-full lg:max-h-full"
         style={{
           background: '#fff',
           borderRadius: 14,

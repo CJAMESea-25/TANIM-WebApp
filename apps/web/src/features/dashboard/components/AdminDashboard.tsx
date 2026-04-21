@@ -38,7 +38,7 @@ import { Line, Bar, Doughnut } from 'react-chartjs-2';
 import {
   Users, Tractor, Download, Plus, Thermometer, Droplets,
   Database, AlertCircle, Calendar, MapPin, ShieldCheck,
-  UserCircle, TrendingUp, BarChart3,
+  UserCircle, TrendingUp, BarChart3, Loader2
 } from 'lucide-react';
 
 ChartJS.register(CategoryScale, LinearScale, LineElement, PointElement, BarElement, ArcElement, Title, Tooltip, Legend);
@@ -782,7 +782,8 @@ export const AdminDashboard = () => {
           <div className="shrink-0 border-t bg-background px-6 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
             <DialogFooter className="gap-2 sm:gap-0">
               <Button variant="outline" className="w-full sm:w-auto" onClick={() => setIsAddFarmerOpen(false)}>Cancel</Button>
-              <Button className="w-full sm:w-auto" onClick={handleAddFarmerSubmit} disabled={isAddingFarmer || !newFarmer.username || !newFarmer.password}>
+              <Button className="w-full sm:w-auto gap-2" onClick={handleAddFarmerSubmit} disabled={isAddingFarmer || !newFarmer.username || !newFarmer.password}>
+                {isAddingFarmer && <Loader2 className="h-4 w-4 animate-spin" />}
                 {isAddingFarmer ? 'Registering...' : 'Register Farmer'}
               </Button>
             </DialogFooter>

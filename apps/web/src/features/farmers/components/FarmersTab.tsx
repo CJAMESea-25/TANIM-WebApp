@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Download, Users, Edit2, Trash2, User, Phone, Tractor, MapPin } from 'lucide-react';
+import { Download, Users, Edit2, Trash2, User, Phone, Tractor, MapPin, Loader2 } from 'lucide-react';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -520,7 +520,8 @@ export const FarmersTab = ({
         <div className="shrink-0 border-t bg-background px-6 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" className="w-full sm:w-auto" onClick={() => setIsAddFarmerOpen(false)}>Cancel</Button>
-            <Button className="w-full sm:w-auto" onClick={handleAddFarmerSubmit} disabled={isAddingFarmer || !newFarmer.username || !newFarmer.password}>
+            <Button className="w-full sm:w-auto gap-2" onClick={handleAddFarmerSubmit} disabled={isAddingFarmer || !newFarmer.username || !newFarmer.password}>
+              {isAddingFarmer && <Loader2 className="h-4 w-4 animate-spin" />}
               {isAddingFarmer ? 'Saving...' : 'Save Farmer'}
             </Button>
           </DialogFooter>
@@ -530,9 +531,16 @@ export const FarmersTab = ({
 
     {/* Add Farm Dialog */}
     <Dialog open={isAddFarmOpen} onOpenChange={setIsAddFarmOpen}>
-      <DialogContent>
-        <DialogHeader><DialogTitle>Add New Farm</DialogTitle></DialogHeader>
-        <div className="space-y-4 py-4">
+      <DialogContent
+        className="flex max-h-[90dvh] w-[calc(100vw-1.25rem)] max-w-[520px] flex-col gap-0 overflow-hidden border bg-background p-0 shadow-lg sm:w-full
+          left-[50%] top-[max(0.5rem,env(safe-area-inset-top,0px))] z-50 -translate-x-1/2 translate-y-0
+          sm:top-[50%] sm:-translate-y-1/2"
+      >
+        <div className="shrink-0 border-b px-6 pb-3 pt-6 pr-14">
+          <DialogHeader className="text-left"><DialogTitle>Add New Farm</DialogTitle></DialogHeader>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-auto overscroll-contain px-6 py-3 [-webkit-overflow-scrolling:touch]">
+        <div className="space-y-4 min-w-0">
           <div className="space-y-2">
             <Label>Farm Name</Label>
             <Input value={newFarm.farm_name} onChange={e => setNewFarm({ ...newFarm, farm_name: e.target.value })} placeholder="Enter farm name" />
@@ -554,12 +562,16 @@ export const FarmersTab = ({
             </Select>
           </div>
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => { setIsAddFarmOpen(false); setSelectedFarmerId(null); }}>Cancel</Button>
-          <Button onClick={handleAddFarmSubmit} disabled={isAddingFarm || !newFarm.farm_name}>
-            {isAddingFarm ? 'Saving...' : 'Save Farm'}
-          </Button>
-        </DialogFooter>
+        </div>
+        <div className="shrink-0 border-t bg-background px-6 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => { setIsAddFarmOpen(false); setSelectedFarmerId(null); }}>Cancel</Button>
+            <Button className="w-full sm:w-auto gap-2" onClick={handleAddFarmSubmit} disabled={isAddingFarm || !newFarm.farm_name}>
+              {isAddingFarm && <Loader2 className="h-4 w-4 animate-spin" />}
+              {isAddingFarm ? 'Saving Farm...' : 'Save Farm'}
+            </Button>
+          </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
 

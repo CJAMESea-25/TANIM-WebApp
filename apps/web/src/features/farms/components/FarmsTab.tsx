@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, MapPin, TrendingUp, Edit2, Trash2, User, Leaf, Tractor, History, Download } from 'lucide-react';
+import { Plus, MapPin, TrendingUp, Edit2, Trash2, User, Leaf, Tractor, History, Download, Loader2 } from 'lucide-react';
 import { updateFarm, deleteFarm } from '@/features/farms/services/farmService';
 import {
   debugLogAllFarmingSessions,
@@ -331,9 +331,16 @@ export const FarmsTab = ({
     <div style={{ padding: '16px 36px 32px 36px', background: '#f0ede4', minHeight: '100vh' }}>
       {/* Add Farm Dialog */}
       <Dialog open={isAddFarmOpen} onOpenChange={(open) => { setIsAddFarmOpen(open); if (!open) setSelectedFarmerId(null); }}>
-        <DialogContent style={{ maxWidth: 520 }}>
-          <DialogHeader><DialogTitle>Add New Farm</DialogTitle></DialogHeader>
-          <div className="space-y-4 py-2">
+        <DialogContent
+          className="flex max-h-[90dvh] w-[calc(100vw-1.25rem)] max-w-[520px] flex-col gap-0 overflow-hidden border bg-background p-0 shadow-lg sm:w-full
+            left-[50%] top-[max(0.5rem,env(safe-area-inset-top,0px))] z-50 -translate-x-1/2 translate-y-0
+            sm:top-[50%] sm:-translate-y-1/2"
+        >
+          <div className="shrink-0 border-b px-6 pb-3 pt-6 pr-14">
+            <DialogHeader className="text-left"><DialogTitle>Add New Farm</DialogTitle></DialogHeader>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-auto overscroll-contain px-6 py-3 [-webkit-overflow-scrolling:touch]">
+          <div className="space-y-4 min-w-0">
 
             {/* Farm Owner Selector */}
             <div className="space-y-2">
@@ -371,7 +378,7 @@ export const FarmsTab = ({
               <Label>Farm Location</Label>
               <Input value={newFarm.farm_location ?? ''} onChange={e => setNewFarm({ ...newFarm, farm_location: e.target.value })} placeholder="e.g. Cagayan de Oro, Region X" />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Latitude (GPS) 🗺</Label>
                 <Input type="number" step="any" value={newFarm.latitude ?? ''} onChange={e => setNewFarm({ ...newFarm, latitude: e.target.value })} placeholder="e.g. 8.4870" />
@@ -386,12 +393,16 @@ export const FarmsTab = ({
               <Input type="number" step="any" value={newFarm.farm_measurement} onChange={e => setNewFarm({ ...newFarm, farm_measurement: e.target.value })} placeholder="Enter size in hectares" />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setIsAddFarmOpen(false); setSelectedFarmerId(null); }}>Cancel</Button>
-            <Button onClick={handleAddFarmSubmit} disabled={isAddingFarm || !newFarm.farm_name || !selectedFarmerId}>
-              {isAddingFarm ? 'Saving...' : 'Save Farm'}
-            </Button>
-          </DialogFooter>
+          </div>
+          <div className="shrink-0 border-t bg-background px-6 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button variant="outline" className="w-full sm:w-auto" onClick={() => { setIsAddFarmOpen(false); setSelectedFarmerId(null); }}>Cancel</Button>
+              <Button className="w-full sm:w-auto gap-2" onClick={handleAddFarmSubmit} disabled={isAddingFarm || !newFarm.farm_name || !selectedFarmerId}>
+                {isAddingFarm && <Loader2 className="h-4 w-4 animate-spin" />}
+                {isAddingFarm ? 'Saving Farm...' : 'Save Farm'}
+              </Button>
+            </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 

@@ -76,7 +76,7 @@ export const GISMappingTab = ({ farms, farmers = [], dbSoilTests = [], onAddFarm
       )}
 
       {/* Live Leaflet map — full width; stacks vertically on narrow screens */}
-      <div className="w-full min-w-0 overflow-x-auto [-webkit-overflow-scrolling:touch]">
+      <div className="flex w-full min-w-0 flex-1 flex-col">
         <FarmMap farms={farms} farmers={farmers} soilTests={dbSoilTests} />
       </div>
     </div>

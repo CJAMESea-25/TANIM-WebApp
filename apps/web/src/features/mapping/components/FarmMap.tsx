@@ -298,12 +298,12 @@ export const FarmMap: React.FC<FarmMapProps> = ({ farms = [], farmers = [], soil
 
       {/* Farm & Farmer Details Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent style={{ maxWidth: 640, borderRadius: 16, padding: 0, overflow: 'hidden' }}>
+        <DialogContent style={{ maxWidth: 640, borderRadius: 16, padding: 0, overflowY: 'auto', maxHeight: '90vh' }}>
           {selectedFarm && (() => {
             const farmer = farmers.find(f => f.farmer_id === selectedFarm.farmer_id || f.id === selectedFarm.farmer_id);
             const soilTest = soilTests.find(t => t.farm_id === selectedFarm.farm_id || t.farm_id === selectedFarm.id);
             const farmerName = farmer ? `${farmer.first_name || ''} ${farmer.last_name || ''}`.trim() || farmer.username : 'Unknown Farmer';
-            const cropName = "Rice, Corn"; // Mock fallback
+            const cropName = soilTest?.selected_crop || 'None';
 
             return (
               <div style={{ display: 'flex', flexDirection: 'column' }}>

@@ -14,7 +14,7 @@ export const GISMappingTab = ({ farms, farmers = [], dbSoilTests = [], onAddFarm
   const needsSetup = farms.length > 0 && farmsWithCoords.length === 0;
 
   return (
-    <div style={{ padding: '32px 36px', background: '#f0ede4', minHeight: '100vh' }}>
+    <div style={{ padding: '16px 36px 32px 36px', background: '#f0ede4', minHeight: '100vh' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, marginBottom: 20 }}>
         <div style={{ maxWidth: 520 }}>

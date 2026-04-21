@@ -162,7 +162,7 @@ const FarmersRegistryView = ({
   const pageFarmers = processedFarmers.slice((page - 1) * rowsPerPage, page * rowsPerPage);
 
   return (
-    <div style={{ padding: '32px 36px', background: '#f0ede4', minHeight: '100vh' }}>
+    <div style={{ padding: '16px 36px 32px 36px', background: '#f0ede4', minHeight: '100vh' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, marginBottom: 32 }}>
         <div style={{ maxWidth: 520 }}>
@@ -228,17 +228,6 @@ const FarmersRegistryView = ({
       {/* Filter bar */}
       <div className="tanim-farms-filter-bar" style={{ marginBottom: 20 }}>
         <div className="tanim-farms-filter-pills" style={{ gap: 12 }}>
-          <Select value={statusFilter} onValueChange={(val) => { setStatusFilter(val); setPage(1); }}>
-            <SelectTrigger style={{ width: 130, height: 34, borderRadius: 20, fontSize: 12, fontWeight: 600, background: statusFilter !== 'all' ? '#eaf5e9' : '#fff', border: '1px solid #e0dacf', color: '#4a5a40' }}>
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="inactive">Inactive</SelectItem>
-            </SelectContent>
-          </Select>
-
           <Select value={sortBy} onValueChange={(val) => { setSortBy(val); setPage(1); }}>
             <SelectTrigger style={{ width: 140, height: 34, borderRadius: 20, fontSize: 12, fontWeight: 600, background: '#fff', border: '1px solid #e0dacf', color: '#4a5a40' }}>
               <SelectValue placeholder="Sort By" />
@@ -255,8 +244,8 @@ const FarmersRegistryView = ({
       </div>
 
       <div style={{ background: '#fff', borderRadius: 14, boxShadow: '0 2px 10px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '2.5fr 2fr 2fr 1fr 1fr', padding: '12px 20px', background: '#f8f6f2', borderBottom: '1px solid #ece8e0' }}>
-          {['Name', 'Contact Information', 'Associated Farm', 'Status', 'Actions'].map(col => (
+        <div style={{ display: 'grid', gridTemplateColumns: '2.5fr 2fr 2fr 1fr', padding: '12px 20px', background: '#f8f6f2', borderBottom: '1px solid #ece8e0' }}>
+          {['Name', 'Contact Information', 'Associated Farm', 'Actions'].map(col => (
             <div key={col} style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', color: '#8aaa7a', textTransform: 'uppercase', textAlign: col === 'Actions' ? 'right' : 'left' }}>{col}</div>
           ))}
         </div>
@@ -285,7 +274,7 @@ const FarmersRegistryView = ({
               <div
                 key={farmer.farmer_id || farmer.id}
                 onClick={() => setViewingFarmer(farmer)}
-                style={{ display: 'grid', gridTemplateColumns: '2.5fr 2fr 2fr 1fr 1fr', padding: '14px 20px', borderBottom: '1px solid #f0ece4', alignItems: 'center', transition: 'background 0.12s ease', cursor: 'pointer' }}
+                style={{ display: 'grid', gridTemplateColumns: '2.5fr 2fr 2fr 1fr', padding: '14px 20px', borderBottom: '1px solid #f0ece4', alignItems: 'center', transition: 'background 0.12s ease', cursor: 'pointer' }}
                 onMouseEnter={e => (e.currentTarget.style.background = '#fafaf7')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
               >
@@ -316,7 +305,6 @@ const FarmersRegistryView = ({
                     <span style={{ fontSize: 12, color: '#bbb', fontStyle: 'italic' }}>No farm assigned</span>
                   )}
                 </div>
-                <div><StatusBadge status={status} /></div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }} onClick={e => e.stopPropagation()}>
                   <button style={{ width: 28, height: 28, color: '#4a5a40', background: 'none', border: '1.5px solid #c0d4b0', borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={(e) => { e.stopPropagation(); onEditFarmer?.(farmer); }} title="Edit Farmer">
                     <Edit2 size={14} />

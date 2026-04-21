@@ -239,26 +239,6 @@ export const FarmsTab = ({
     setPage(1);
   };
 
-  let processedFarms = farms.filter((f: any) => {
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      const fName = (f.farm_name || f.name || '').toLowerCase();
-      const fLoc = getFarmLocation(f).toLowerCase();
-      if (!fName.includes(q) && !fLoc.includes(q)) return false;
-    }
-    if (statusFilter !== 'all') {
-      const s = getFarmSoilStatus(f, dbSoilTests);
-      if (s.raw !== statusFilter) return false;
-    }
-    return true;
-  });
-
-  if (sortBy === 'recent') {
-    processedFarms.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
-  } else {
-    processedFarms.sort((a, b) => (a.farm_name || a.name || '').localeCompare(b.farm_name || b.name || ''));
-  }
-
   const getFarmSoilStatus = (farm: any, dbSoilTests: any[]) => {
     const farmTests = dbSoilTests.filter((t: any) => t.farm_id === farm.farm_id || t.farm_id === farm.id);
     const validTests = farmTests.filter((t: any) => {
@@ -282,6 +262,27 @@ export const FarmsTab = ({
     if (pH < 5.5 || pH > 7.5) return { label: 'Needs Attention', cls: 'tanim-soil-attention', raw: 'attention' };
     return { label: 'Healthy', cls: 'tanim-soil-healthy', raw: 'healthy' };
   };
+
+  let processedFarms = farms.filter((f: any) => {
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const fName = (f.farm_name || f.name || '').toLowerCase();
+      const fLoc = getFarmLocation(f).toLowerCase();
+      if (!fName.includes(q) && !fLoc.includes(q)) return false;
+    }
+    if (statusFilter !== 'all') {
+      const s = getFarmSoilStatus(f, dbSoilTests);
+      if (s.raw !== statusFilter) return false;
+    }
+    return true;
+  });
+
+  if (sortBy === 'recent') {
+    processedFarms.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+  } else {
+    processedFarms.sort((a, b) => (a.farm_name || a.name || '').localeCompare(b.farm_name || b.name || ''));
+  }
+
 
   const totalArea = processedFarms.reduce((acc: number, f: any) => acc + Number(f.farm_measurement || 0), 0);
   let healthy = 0, attention = 0, critical = 0, nodata = 0;
@@ -327,7 +328,7 @@ export const FarmsTab = ({
   };
 
   return (
-    <div style={{ padding: '32px 36px', background: '#f0ede4', minHeight: '100vh' }}>
+    <div style={{ padding: '16px 36px 32px 36px', background: '#f0ede4', minHeight: '100vh' }}>
       {/* Add Farm Dialog */}
       <Dialog open={isAddFarmOpen} onOpenChange={(open) => { setIsAddFarmOpen(open); if (!open) setSelectedFarmerId(null); }}>
         <DialogContent style={{ maxWidth: 520 }}>
@@ -508,7 +509,10 @@ export const FarmsTab = ({
               <tbody>
                 {pageFarms.map((farm: any, idx: number) => {
                   const farmer = farmers.find((f: any) => f.farmer_id === farm.farmer_id || f.id === farm.farmer_id);
-                  const ownerName = farmer?.username || farmer?.name || 'Unassigned';
+                  let fullName = farmer && (farmer.first_name || farmer.last_name) 
+                    ? `${farmer.first_name || ''} ${farmer.last_name || ''}`.trim() 
+                    : null;
+                  const ownerName = fullName || farmer?.username || farmer?.name || 'Unassigned';
                   const status = getFarmSoilStatus(farm, dbSoilTests);
                   const emoji = farmEmojis[(idx + (page - 1) * rowsPerPage) % farmEmojis.length];
                   return (

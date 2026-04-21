@@ -147,7 +147,7 @@ const DashboardPage = ({
     iso ? new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
 
   return (
-    <div style={{ padding: '32px 36px', background: '#f0ede4', minHeight: '100vh' }}>
+    <div style={{ padding: '16px 36px 32px 36px', background: '#f0ede4', minHeight: '100vh' }}>
 
       {/* ── Header ── */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, marginBottom: 32 }}>
@@ -433,7 +433,8 @@ export const AdminDashboard = () => {
         temperature: snap.temperature,
         moisture: snap.moisture,
         salinity: snap.salinity,
-        npk_classification: classification
+        npk_classification: classification,
+        selected_crop: fs.selected_crop || fs.selected_crops
       };
     }).filter(Boolean);
   }, [rawSessions]);

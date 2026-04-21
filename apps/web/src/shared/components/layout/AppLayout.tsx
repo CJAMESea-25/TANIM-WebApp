@@ -38,11 +38,11 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   const isSuperAdmin = userName === 'superadmin';
 
   return (
-    <div className="tanim-app-shell">
+    <div className="tanim-app-shell" style={{ height: '100vh', width: '100%', overflow: 'hidden', display: 'flex', position: 'fixed', inset: 0 }}>
       <Sidebar activePage={activePage} onNavigate={onNavigate} onLogout={onLogout} isSuperAdmin={isSuperAdmin} />
-      <div className="tanim-main-area">
+      <div className="tanim-main-area" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', height: '100vh' }}>
         <Topbar userName={userName} userRole={userRole} userAvatar={userAvatar} searchQuery={searchQuery} onSearchChange={onSearchChange} farms={farms} farmers={farmers} dbSoilTests={dbSoilTests} onNavigateApp={onNavigate} onNavigateToFarm={onNavigateToFarm} onNavigateToFarmer={onNavigateToFarmer} />
-        <main className="tanim-content">{children}</main>
+        <main className="tanim-content" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>{children}</main>
       </div>
     </div>
   );

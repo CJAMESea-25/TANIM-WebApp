@@ -31,9 +31,9 @@ const deriveStatus = (idx: number): 'VERIFIED' | 'AUDIT DUE' | 'INACTIVE' => {
 };
 
 const statusStyle: Record<string, { bg: string; color: string; border: string }> = {
-  'VERIFIED':  { bg: '#eaf5e9', color: '#2e7d32', border: '#b5ddb3' },
+  'VERIFIED': { bg: '#eaf5e9', color: '#2e7d32', border: '#b5ddb3' },
   'AUDIT DUE': { bg: '#fff3e0', color: '#c0392b', border: '#f5c6a0' },
-  'INACTIVE':  { bg: '#f5f5f5', color: '#757575', border: '#d8d8d8' },
+  'INACTIVE': { bg: '#f5f5f5', color: '#757575', border: '#d8d8d8' },
 };
 
 const StatusBadge = ({ status }: { status: string }) => {
@@ -53,10 +53,10 @@ const StatusBadge = ({ status }: { status: string }) => {
 
 export const FarmerInterface = () => {
   const { data: farmers = [] } = useFarmers() as { data: any[] };
-  const { data: farms = [] }   = useFarms()   as { data: any[] };
+  const { data: farms = [] } = useFarms() as { data: any[] };
 
-  const [page, setPage]           = React.useState(1);
-  const [search, setSearch]       = React.useState('');
+  const [page, setPage] = React.useState(1);
+  const [search, setSearch] = React.useState('');
 
   const rowsPerPage = 8;
 
@@ -67,16 +67,28 @@ export const FarmerInterface = () => {
     return name.includes(search.toLowerCase()) || phone.includes(search.toLowerCase());
   });
 
-  const totalPages   = Math.max(1, Math.ceil(filtered.length / rowsPerPage));
-  const pageFarmers  = filtered.slice((page - 1) * rowsPerPage, page * rowsPerPage);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / rowsPerPage));
+  const pageFarmers = filtered.slice((page - 1) * rowsPerPage, page * rowsPerPage);
 
   // Stats
-  const totalActive  = farmers.length;
-  const pendingCert  = Math.max(0, Math.floor(farmers.length * 0.03) || (farmers.length > 0 ? 1 : 0));
-  const third        = Math.floor(farmers.length / 3);
-  const north        = third;
-  const south        = third;
-  const central      = farmers.length - north - south;
+  const totalActive = farmers.length;
+  const pendingCert = Math.max(0, Math.floor(farmers.length * 0.03) || (farmers.length > 0 ? 1 : 0));
+  
+  // Real Regional Coverage (Bukidnon Zones)
+  let north = 0, central = 0, south = 0;
+  farmers.forEach((farmer: any) => {
+    const assignedFarms = farms.filter((f: any) => f.farmer_id === farmer.farmer_id || f.farmer_id === farmer.id);
+    if (assignedFarms.length === 0) return; // Skip unassigned farmers for coverage
+    
+    const loc = (assignedFarms[0].farm_location || '').toLowerCase();
+    
+    const isNorth = ['manolo', 'impasugong', 'talakag', 'baungon', 'libona', 'malitbog', 'sumilao', 'cabanglasan'].some(m => loc.includes(m));
+    const isSouth = ['maramag', 'quezon', 'don carlos', 'dangcagan', 'kitaotao', 'kibawe', 'damulog', 'kadingilan', 'pangantucan', 'kalilangan'].some(m => loc.includes(m));
+    
+    if (isNorth) north++;
+    else if (isSouth) south++;
+    else central++; // Default to central (Malaybalay, Valencia, Lantapan, San Fernando, or generic 'Bukidnon')
+  });
 
   // Reset page when search changes
   React.useEffect(() => { setPage(1); }, [search]);
@@ -91,8 +103,7 @@ export const FarmerInterface = () => {
             Farmers Management
           </h1>
           <p style={{ fontSize: 13, color: '#7a8a70', maxWidth: 460, lineHeight: 1.5, margin: 0 }}>
-            Central registry of agricultural partners. Monitor farmer certifications,
-            contact details, and land associations across all active regions.
+            List of farmers in the TANIM platform.
           </p>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 }}>
@@ -145,29 +156,29 @@ export const FarmerInterface = () => {
         <div style={{ background: '#fff', borderRadius: 14, padding: '20px 24px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', color: '#8aaa7a', textTransform: 'uppercase', marginBottom: 14 }}>
-              Regional Coverage
+              Bukidnon Coverage
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {[
-                { label: 'North',   count: north,   color: '#3a5a40' },
-                { label: 'South',   count: south,   color: '#588157' },
-                { label: 'Central', count: central, color: '#888'    },
+                { label: 'North', count: north, color: '#3a5a40' },
+                { label: 'Central', count: central, color: '#888' },
+                { label: 'South', count: south, color: '#588157' },
               ].map(({ label, count, color }) => (
                 <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: '#4a5a40' }}>
                   <span style={{ width: 7, height: 7, borderRadius: '50%', background: color, display: 'inline-block', flexShrink: 0 }} />
                   <span style={{ fontWeight: 600 }}>{label}:</span>
-                  <span style={{ color: '#7a8a70' }}>{count}</span>
+                  <span style={{ color: '#7a8a70' }}>{count} Farmers</span>
                 </div>
               ))}
             </div>
           </div>
           {/* Mini bar chart */}
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 60 }}>
-            {[north, south, central].map((v, i) => {
+            {[north, central, south].map((v, i) => {
               const maxV = Math.max(north, south, central, 1);
               const barH = Math.max(8, Math.round((v / maxV) * 56));
               return (
-                <div key={i} style={{ width: 14, height: barH, background: ['#3a5a40', '#a3b18a', '#d0cabb'][i], borderRadius: '3px 3px 0 0', opacity: 0.85 }} />
+                <div key={i} style={{ width: 14, height: barH, background: ['#3a5a40', '#888', '#588157'][i], borderRadius: '3px 3px 0 0', opacity: 0.85 }} />
               );
             })}
           </div>
@@ -214,16 +225,16 @@ export const FarmerInterface = () => {
           </div>
         ) : (
           pageFarmers.map((farmer: any, idx: number) => {
-            const globalIdx     = (page - 1) * rowsPerPage + idx;
-            const name          = farmer.username || farmer.name || 'Unknown Farmer';
-            const initials      = getInitials(name);
-            const bg            = avatarBg(name);
-            const farmerId      = formatId(farmer.farmer_id || farmer.id);
-            const email         = farmer.email || `${(name.split(' ')[0] || 'farmer').toLowerCase()}@tanim.ag`;
-            const phone         = farmer.phone || '—';
+            const globalIdx = (page - 1) * rowsPerPage + idx;
+            const name = farmer.username || farmer.name || 'Unknown Farmer';
+            const initials = getInitials(name);
+            const bg = avatarBg(name);
+            const farmerId = formatId(farmer.farmer_id || farmer.id);
+            const email = farmer.email || `${(name.split(' ')[0] || 'farmer').toLowerCase()}@tanim.ag`;
+            const phone = farmer.phone || '—';
             const assignedFarms = farms.filter((f: any) => f.farmer_id === farmer.farmer_id || f.farmer_id === farmer.id);
-            const primaryFarm   = assignedFarms[0];
-            const status        = deriveStatus(globalIdx);
+            const primaryFarm = assignedFarms[0];
+            const status = deriveStatus(globalIdx);
 
             return (
               <div

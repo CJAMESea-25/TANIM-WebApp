@@ -3,7 +3,7 @@ import { loginAdmin } from '../services/auth.service';
 import { useGlobalAuth } from '../hooks/useGlobalAuth';
 import { toast } from 'sonner';
 
-// ─── Palette ─────────────────────────────────────────────────────────────────
+// ─── Palette 
 const C = {
   bg: '#DAD7CD',
   card: '#ffffff',

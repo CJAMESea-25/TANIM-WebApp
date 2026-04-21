@@ -135,6 +135,7 @@ function buildCropHistoryCsv(
 export interface FarmsTabProps {
   farms: any[];
   farmers: any[];
+  dbSoilTests?: any[];
   searchQuery?: string;
   isAddFarmOpen: boolean;
   setIsAddFarmOpen: (v: boolean) => void;
@@ -151,7 +152,7 @@ export interface FarmsTabProps {
 }
 
 export const FarmsTab = ({
-  farms, farmers, searchQuery = '',
+  farms, farmers, dbSoilTests = [], searchQuery = '',
   isAddFarmOpen, setIsAddFarmOpen,
   newFarm, setNewFarm, isAddingFarm, handleAddFarmSubmit,
   selectedFarmerId, setSelectedFarmerId,
@@ -228,7 +229,7 @@ export const FarmsTab = ({
   }, [viewingFarm]);
 
   const nextStatusFilter = () => {
-    const cycle = ['all', 'healthy', 'attention', 'critical'];
+    const cycle = ['all', 'healthy', 'attention', 'critical', 'nodata'];
     setStatusFilter(cycle[(cycle.indexOf(statusFilter) + 1) % cycle.length]);
     setPage(1);
   };
@@ -246,10 +247,8 @@ export const FarmsTab = ({
       if (!fName.includes(q) && !fLoc.includes(q)) return false;
     }
     if (statusFilter !== 'all') {
-      const type = f.soilType || 'loam';
-      if (statusFilter === 'healthy' && (type === 'clay' || type === 'sandy')) return false;
-      if (statusFilter === 'attention' && type !== 'clay') return false;
-      if (statusFilter === 'critical' && type !== 'sandy') return false;
+      const s = getFarmSoilStatus(f, dbSoilTests);
+      if (s.raw !== statusFilter) return false;
     }
     return true;
   });
@@ -260,16 +259,72 @@ export const FarmsTab = ({
     processedFarms.sort((a, b) => (a.farm_name || a.name || '').localeCompare(b.farm_name || b.name || ''));
   }
 
+  const getFarmSoilStatus = (farm: any, dbSoilTests: any[]) => {
+    const farmTests = dbSoilTests.filter((t: any) => t.farm_id === farm.farm_id || t.farm_id === farm.id);
+    const validTests = farmTests.filter((t: any) => {
+      const ph = Number(t.ph || t.pH || 0);
+      const n = Number(t.nitrogen || 0);
+      const p = Number(t.phosphorus || 0);
+      const k = Number(t.potassium || 0);
+      return ph !== 0 || n !== 0 || p !== 0 || k !== 0;
+    });
+    if (validTests.length === 0) return { label: 'No Soil Data', cls: 'tanim-soil-nodata', raw: 'nodata' };
+
+    validTests.sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+    const latest = validTests[0];
+    const classification = (latest.npk_classification || latest.classification || '').toLowerCase();
+
+    if (classification.includes('optimum') || classification === 'high' || classification === 'healthy') return { label: 'Healthy', cls: 'tanim-soil-healthy', raw: 'healthy' };
+    if (classification.includes('deficient') || classification.includes('critical') || classification === 'low') return { label: 'Critical', cls: 'tanim-soil-critical', raw: 'critical' };
+
+    const pH = Number(latest.ph || latest.pH || 7);
+    if (pH < 5.0 || pH > 8.0) return { label: 'Critical', cls: 'tanim-soil-critical', raw: 'critical' };
+    if (pH < 5.5 || pH > 7.5) return { label: 'Needs Attention', cls: 'tanim-soil-attention', raw: 'attention' };
+    return { label: 'Healthy', cls: 'tanim-soil-healthy', raw: 'healthy' };
+  };
+
   const totalArea = processedFarms.reduce((acc: number, f: any) => acc + Number(f.farm_measurement || 0), 0);
-  const healthy = processedFarms.filter((f: any) => !['clay', 'sandy'].includes(f.soilType)).length;
-  const attention = processedFarms.filter((f: any) => f.soilType === 'clay').length;
-  const critical = processedFarms.filter((f: any) => f.soilType === 'sandy').length;
+  let healthy = 0, attention = 0, critical = 0, nodata = 0;
+  processedFarms.forEach((f: any) => {
+    const s = getFarmSoilStatus(f, dbSoilTests);
+    if (s.raw === 'healthy') healthy++;
+    else if (s.raw === 'critical') critical++;
+    else if (s.raw === 'attention') attention++;
+    else nodata++;
+  });
   const total = processedFarms.length || 1;
   const pctHealthy = Math.round((healthy / total) * 100);
   const pctAttention = Math.round((attention / total) * 100);
-  const pctCritical = 100 - pctHealthy - pctAttention;
+  const pctCritical = Math.round((critical / total) * 100);
+  const pctNoData = nodata > 0 ? 100 - pctHealthy - pctAttention - pctCritical : 0;
+  // Fallback to ensuring total is 100 without negative pct
+  const actualPctHealthy = nodata === 0 && (pctHealthy + pctAttention + pctCritical) < 100 ? pctHealthy + (100 - (pctHealthy + pctAttention + pctCritical)) : pctHealthy;
   const totalPages = Math.max(1, Math.ceil(processedFarms.length / rowsPerPage));
   const pageFarms = processedFarms.slice((page - 1) * rowsPerPage, page * rowsPerPage);
+
+  const handleExportFarms = () => {
+    const headers = ['Farm Name', 'Location', 'Owner', 'Area (Hectares)', 'Soil Type'];
+    const rows = [headers];
+    processedFarms.forEach((farm: any) => {
+      const farmer = farmers.find((f: any) => f.farmer_id === farm.farmer_id || f.id === farm.farmer_id);
+      const ownerName = farmer ? `${farmer.first_name || ''} ${farmer.last_name || ''}`.trim() || farmer.username || farmer.name : 'Unassigned';
+      rows.push([
+        farm.farm_name || farm.name || 'Unnamed',
+        getFarmLocation(farm),
+        ownerName,
+        String(farm.farm_measurement || 0),
+        farm.soilType || 'loam'
+      ]);
+    });
+    const csvContent = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `farms_export_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div style={{ padding: '32px 36px', background: '#f0ede4', minHeight: '100vh' }}>
@@ -289,12 +344,12 @@ export const FarmsTab = ({
                 <SelectTrigger>
                   <SelectValue placeholder="Select a farmer..." />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent style={{ zIndex: 99999 }} position="popper">
                   {farmers.length === 0 ? (
                     <SelectItem value="__none__" disabled>No farmers registered yet</SelectItem>
                   ) : (
                     farmers.map((f: any) => (
-                      <SelectItem key={f.farmer_id || f.id} value={f.farmer_id || f.id}>
+                      <SelectItem key={f.farmer_id || f.id} value={String(f.farmer_id || f.id)}>
                         {f.first_name && f.last_name
                           ? `${f.first_name} ${f.last_name} (${f.username})`
                           : f.username || f.name || f.farmer_id}
@@ -347,17 +402,27 @@ export const FarmsTab = ({
             Farms Management
           </h1>
           <p style={{ fontSize: 13.5, color: '#6a7a60', margin: 0, lineHeight: 1.6 }}>
-            Monitor soil vitality, location data, and ownership details across your regional agricultural portfolio.
+            Monitor farms across Bukidnon.
           </p>
         </div>
-        <button onClick={() => setIsAddFarmOpen(true)} style={{
-          display: 'inline-flex', alignItems: 'center', gap: 7, padding: '10px 18px',
-          borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer',
-          background: '#3a5a40', color: '#fff', border: 'none', whiteSpace: 'nowrap',
-          boxShadow: '0 2px 8px rgba(58,90,64,0.25)',
-        }}>
-          <Plus size={15} /> Add New Farm
-        </button>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 }}>
+          <button onClick={handleExportFarms} style={{
+            display: 'inline-flex', alignItems: 'center', gap: 7, padding: '10px 18px',
+            borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+            background: '#fff', border: '1.5px solid #d5cfc5', color: '#4a5a40',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+          }}>
+            <Download size={14} /> Export Registry
+          </button>
+          <button onClick={() => setIsAddFarmOpen(true)} style={{
+            display: 'inline-flex', alignItems: 'center', gap: 7, padding: '10px 18px',
+            borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+            background: '#3a5a40', color: '#fff', border: 'none', whiteSpace: 'nowrap',
+            boxShadow: '0 2px 8px rgba(58,90,64,0.25)',
+          }}>
+            <Plus size={15} /> Add New Farm
+          </button>
+        </div>
       </div>
 
       {/* Stats row */}
@@ -379,14 +444,16 @@ export const FarmsTab = ({
             <button className="tanim-farm-soil-report-link">View Detailed Report →</button>
           </div>
           <div className="tanim-farm-soil-bar">
-            <div className="tanim-farm-soil-bar-seg" style={{ width: `${pctHealthy}%`, background: '#4caf50' }} />
-            <div className="tanim-farm-soil-bar-seg" style={{ width: `${pctAttention}%`, background: '#f5a623' }} />
-            <div className="tanim-farm-soil-bar-seg" style={{ width: `${Math.max(pctCritical, 0)}%`, background: '#e53935' }} />
+            {actualPctHealthy > 0 && <div className="tanim-farm-soil-bar-seg" style={{ width: `${actualPctHealthy}%`, background: '#4caf50' }} />}
+            {pctAttention > 0 && <div className="tanim-farm-soil-bar-seg" style={{ width: `${pctAttention}%`, background: '#f5a623' }} />}
+            {pctCritical > 0 && <div className="tanim-farm-soil-bar-seg" style={{ width: `${pctCritical}%`, background: '#e53935' }} />}
+            {pctNoData > 0 && <div className="tanim-farm-soil-bar-seg" style={{ width: `${pctNoData}%`, background: '#b0b8a0' }} />}
           </div>
           <div className="tanim-farm-soil-legend">
-            <div className="tanim-farm-soil-legend-item"><div className="tanim-farm-soil-legend-dot" style={{ background: '#4caf50' }} />{pctHealthy}% Optimal</div>
+            <div className="tanim-farm-soil-legend-item"><div className="tanim-farm-soil-legend-dot" style={{ background: '#4caf50' }} />{actualPctHealthy}% Optimal</div>
             <div className="tanim-farm-soil-legend-item"><div className="tanim-farm-soil-legend-dot" style={{ background: '#f5a623' }} />{pctAttention}% Attention</div>
-            <div className="tanim-farm-soil-legend-item"><div className="tanim-farm-soil-legend-dot" style={{ background: '#e53935' }} />{Math.max(pctCritical, 0)}% Critical</div>
+            <div className="tanim-farm-soil-legend-item"><div className="tanim-farm-soil-legend-dot" style={{ background: '#e53935' }} />{pctCritical}% Critical</div>
+            <div className="tanim-farm-soil-legend-item"><div className="tanim-farm-soil-legend-dot" style={{ background: '#b0b8a0' }} />{pctNoData}% No Data</div>
           </div>
         </div>
       </div>
@@ -402,6 +469,7 @@ export const FarmsTab = ({
               <SelectItem value="healthy">Healthy</SelectItem>
               <SelectItem value="attention">Attention</SelectItem>
               <SelectItem value="critical">Critical</SelectItem>
+              <SelectItem value="nodata">No Soil Data</SelectItem>
             </SelectContent>
           </Select>
 
@@ -420,14 +488,14 @@ export const FarmsTab = ({
         </div>
       </div>
 
-      <div className="tanim-farms-table-wrap">
+      <div className="tanim-farms-table-wrap" style={{ marginTop: '16px' }}>
         {processedFarms.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '48px 24px', color: '#8a9880', fontSize: '14px' }}>
             No farms match your search or filters.
           </div>
         ) : (
           <>
-            <table className="tanim-farms-table">
+            <table className="tanim-farms-table" style={{ width: '100%' }}>
               <thead>
                 <tr>
                   <th>Farm Name</th>
@@ -441,11 +509,8 @@ export const FarmsTab = ({
                 {pageFarms.map((farm: any, idx: number) => {
                   const farmer = farmers.find((f: any) => f.farmer_id === farm.farmer_id || f.id === farm.farmer_id);
                   const ownerName = farmer?.username || farmer?.name || 'Unassigned';
-                  const status = soilStatusInfo(farm.soilType || 'loam');
+                  const status = getFarmSoilStatus(farm, dbSoilTests);
                   const emoji = farmEmojis[(idx + (page - 1) * rowsPerPage) % farmEmojis.length];
-                  const cropLabel = farm.soilType
-                    ? `${farm.soilType.charAt(0).toUpperCase() + farm.soilType.slice(1)} Soil`
-                    : 'Mixed Crops';
                   return (
                     <tr
                       key={farm.farm_id || farm.id}
@@ -459,7 +524,7 @@ export const FarmsTab = ({
                           <div className="tanim-farm-thumb">{emoji}</div>
                           <div className="tanim-farm-name-text">
                             <strong>{farm.farm_name || farm.name}</strong>
-                            <span>{cropLabel} • {farm.farm_measurement || 0} Hectares</span>
+                            <span>{farm.farm_measurement || 0} Hectares</span>
                           </div>
                         </div>
                       </td>

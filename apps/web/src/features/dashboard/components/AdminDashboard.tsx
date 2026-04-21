@@ -1,16 +1,16 @@
 import React from 'react';
 import { useFarms } from '@/features/farms/hooks/useFarms';
 import { useFarmers } from '@/features/farmers/hooks/useFarmers';
-import { useSoilTests } from '@/features/soil/hooks/useSoilTests';
 import { useSystemActivity } from '@/features/dashboard/hooks/useSystemActivity';
 import { useGlobalAuth } from '@/features/auth/hooks/useGlobalAuth';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { createFarmer, updateFarmer, deleteFarmer } from '@/features/farmers/services/farmerService';
 import { createFarm, deleteFarm } from '@/features/farms/services/farmService';
 import { useCropStore } from '@/features/crops/stores/cropStore';
 import {
   fetchAllFarmingSessionsRaw,
   farmingSessionsRowsToCsv,
+  soilScalarsFromSnapshot,
 } from '@/features/farms/services/farmingSessionService';
 import { AppLayout } from '@/shared/components/layout/AppLayout';
 import { SidebarPage } from '@/shared/components/layout/Sidebar';
@@ -50,29 +50,26 @@ const DashboardPage = ({
   farms: any[]; farmers: any[]; dbSoilTests: any[]; dbSystemActivity: any[]; liveWeather: any[]; onAddFarmer: () => void;
 }) => {
   const [isExportingSessions, setIsExportingSessions] = React.useState(false);
-  const avgN = dbSoilTests.length ? dbSoilTests.reduce((acc: number, t: any) => acc + Number(t.nitrogen || 0), 0) / dbSoilTests.length : 0;
-  const avgP = dbSoilTests.length ? dbSoilTests.reduce((acc: number, t: any) => acc + Number(t.phosphorus || 0), 0) / dbSoilTests.length : 0;
-  const avgK = dbSoilTests.length ? dbSoilTests.reduce((acc: number, t: any) => acc + Number(t.potassium || 0), 0) / dbSoilTests.length : 0;
-  const avgPH = dbSoilTests.length ? dbSoilTests.reduce((acc: number, t: any) => acc + Number(t.ph || 0), 0) / dbSoilTests.length : 0;
-  const avgMoisture = dbSoilTests.length ? dbSoilTests.reduce((acc: number, t: any) => acc + Number(t.moisture || 0), 0) / dbSoilTests.length : 0;
-  const avgTemp = dbSoilTests.length ? dbSoilTests.reduce((acc: number, t: any) => acc + Number(t.temperature || 0), 0) / dbSoilTests.length : 0;
-  const avgHumidity = dbSoilTests.length ? dbSoilTests.reduce((acc: number, t: any) => acc + Number(t.humidity || 0), 0) / dbSoilTests.length : 0;
+  // Exact recent chronological tests
+  const recentTests = [...dbSoilTests]
+    .sort((a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime())
+    .slice(-15);
 
-
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
-  const buildWave = (base: number, amp: number, shift: number) =>
-    months.map((_, i) => Math.max(0, base + amp * Math.sin((i + shift) * 1.2)).toFixed(1));
+  const labels = recentTests.map(t => {
+    const d = t.created_at ? new Date(t.created_at) : new Date();
+    return `${d.toLocaleString('default', { month: 'short' })} ${d.getDate()}`;
+  });
 
   const soilLineData = {
-    labels: months,
+    labels: labels.length ? labels : ['No Data'],
     datasets: [
-      { label: 'Nitrogen', data: buildWave(Math.max(avgN, 35), 12, 0), borderColor: '#3a5a40', backgroundColor: 'transparent', tension: 0.5, pointRadius: 0, borderWidth: 2 },
-      { label: 'Phosphorous', data: buildWave(Math.max(avgP, 28), 10, 2), borderColor: '#8aaa6a', backgroundColor: 'transparent', tension: 0.5, pointRadius: 0, borderWidth: 2 },
-      { label: 'Potassium', data: buildWave(Math.max(avgK, 22), 8, 4), borderColor: '#c5d5a5', backgroundColor: 'transparent', tension: 0.5, pointRadius: 0, borderWidth: 2 },
-      { label: 'PH', data: buildWave(Math.max(avgPH, 6.5), 1, 6), borderColor: '#c5d5a5', backgroundColor: 'transparent', tension: 0.5, pointRadius: 0, borderWidth: 2 },
-      { label: 'Moisture', data: buildWave(Math.max(avgMoisture, 40), 10, 8), borderColor: '#c5d5a5', backgroundColor: 'transparent', tension: 0.5, pointRadius: 0, borderWidth: 2 },
-      { label: 'Temperature', data: buildWave(Math.max(avgTemp, 25), 5, 10), borderColor: '#c5d5a5', backgroundColor: 'transparent', tension: 0.5, pointRadius: 0, borderWidth: 2 },
-      { label: 'Humidity', data: buildWave(Math.max(avgHumidity, 60), 10, 12), borderColor: '#c5d5a5', backgroundColor: 'transparent', tension: 0.5, pointRadius: 0, borderWidth: 2 },
+      { label: 'Nitrogen', data: recentTests.length ? recentTests.map(t => Number(t.nitrogen || 0)) : [0], borderColor: '#3a5a40', backgroundColor: 'transparent', tension: 0.4, pointRadius: 3, borderWidth: 2 },
+      { label: 'Phosphorous', data: recentTests.length ? recentTests.map(t => Number(t.phosphorus || 0)) : [0], borderColor: '#8aaa6a', backgroundColor: 'transparent', tension: 0.4, pointRadius: 3, borderWidth: 2 },
+      { label: 'Potassium', data: recentTests.length ? recentTests.map(t => Number(t.potassium || 0)) : [0], borderColor: '#c5d5a5', backgroundColor: 'transparent', tension: 0.4, pointRadius: 3, borderWidth: 2 },
+      { label: 'pH', data: recentTests.length ? recentTests.map(t => Number(t.ph || 0)) : [0], borderColor: '#e76f51', backgroundColor: 'transparent', tension: 0.4, pointRadius: 3, borderWidth: 2 },
+      { label: 'Moisture', data: recentTests.length ? recentTests.map(t => Number(t.moisture || 0)) : [0], borderColor: '#2a9d8f', backgroundColor: 'transparent', tension: 0.4, pointRadius: 3, borderWidth: 2 },
+      { label: 'Temperature', data: recentTests.length ? recentTests.map(t => Number(t.temperature || 0)) : [0], borderColor: '#e63946', backgroundColor: 'transparent', tension: 0.4, pointRadius: 3, borderWidth: 2 },
+      { label: 'Salinity', data: recentTests.length ? recentTests.map(t => Number(t.salinity || 0)) : [0], borderColor: '#457b9d', backgroundColor: 'transparent', tension: 0.4, pointRadius: 3, borderWidth: 2 },
     ],
   };
 
@@ -85,7 +82,15 @@ const DashboardPage = ({
         align: 'end' as const,
         labels: { boxWidth: 8, boxHeight: 8, usePointStyle: true, pointStyle: 'circle' as const, font: { size: 10 }, color: '#4a5a40' },
       },
-      tooltip: { mode: 'index' as const, intersect: false },
+      tooltip: {
+        mode: 'index' as const,
+        intersect: false,
+        padding: 8,
+        titleFont: { size: 11 },
+        bodyFont: { size: 10 },
+        boxPadding: 4,
+        usePointStyle: true,
+      },
     },
     scales: {
       x: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#8a9880' }, border: { display: false } },
@@ -211,7 +216,7 @@ const DashboardPage = ({
         <div style={{ background: '#fff', borderRadius: 18, padding: '24px 28px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
           <div style={{ fontSize: 16, fontWeight: 700, color: '#1e2a1e', lineHeight: 1.3 }}>Soil Health<br />Trends</div>
           <div style={{ fontSize: 11, color: '#9aaa8a', marginTop: 4, marginBottom: 8 }}>Metric distribution over time (NPK Levels)</div>
-          <div style={{ height: 130 }}>
+          <div style={{ height: 160 }}>
             <Line data={soilLineData} options={soilChartOptions} />
           </div>
         </div>
@@ -400,7 +405,48 @@ const AdminProfilePage = ({ profile }: { profile: any }) => (
 export const AdminDashboard = () => {
   const { data: farms = [], isLoading: isLoadingFarms } = useFarms() as any;
   const { data: farmers = [], isLoading: isLoadingFarmers } = useFarmers() as any;
-  const { data: dbSoilTests = [] } = useSoilTests() as any;
+
+  const { data: rawSessions = [] } = useQuery({ queryKey: ['farming_sessions_all'], queryFn: fetchAllFarmingSessionsRaw }) as any;
+  const dbSoilTests = React.useMemo(() => {
+    // DEBUG: log raw snapshot keys to verify backend field names
+    if ((rawSessions as any[])?.length > 0) {
+      const firstSnap = (rawSessions as any[])[0]?.soil_snapshot;
+      console.log('[soil_snapshot] raw keys from backend:', firstSnap ? Object.keys(firstSnap) : 'null/undefined');
+      console.log('[soil_snapshot] first raw value:', firstSnap);
+    }
+    return (rawSessions || []).map((fs: any) => {
+      const snap = soilScalarsFromSnapshot(fs.soil_snapshot);
+      if (!snap) return null;
+      if (snap.ph == null && snap.nitrogen == null && snap.phosphorus == null && snap.potassium == null) return null;
+      const rawSnapshot = fs.soil_snapshot || {};
+      const classification = typeof rawSnapshot === 'object' && rawSnapshot !== null
+        ? (rawSnapshot as any).npk_classification || (rawSnapshot as any).classification
+        : undefined;
+      return {
+        id: fs.id || fs.farming_session_id,
+        farm_id: fs.farm_id,
+        created_at: snap.received_at || fs.created_at,
+        ph: snap.ph,
+        nitrogen: snap.nitrogen,
+        phosphorus: snap.phosphorus,
+        potassium: snap.potassium,
+        temperature: snap.temperature,
+        moisture: snap.moisture,
+        salinity: snap.salinity,
+        npk_classification: classification
+      };
+    }).filter(Boolean);
+  }, [rawSessions]);
+
+  React.useEffect(() => {
+    if ((dbSoilTests as any[]).length > 0) {
+      console.log('[dbSoilTests] parsed count:', (dbSoilTests as any[]).length);
+      console.log('[dbSoilTests] first parsed record:', (dbSoilTests as any[])[0]);
+    } else if ((rawSessions as any[]).length > 0) {
+      console.warn('[dbSoilTests] rawSessions has data but dbSoilTests is EMPTY — soil_snapshot key names likely do not match!');
+    }
+  }, [dbSoilTests, rawSessions]);
+
   const { data: dbSystemActivity = [] } = useSystemActivity() as any;
   const { profile, logout } = useGlobalAuth();
   const queryClient = useQueryClient();
@@ -597,7 +643,7 @@ export const AdminDashboard = () => {
       case 'farms':
         return (
           <FarmsTab
-            farms={farms} farmers={farmers}
+            farms={farms} farmers={farmers} dbSoilTests={dbSoilTests}
             searchQuery={searchQuery}
             isAddFarmOpen={isAddFarmOpen} setIsAddFarmOpen={setIsAddFarmOpen}
             newFarm={newFarm} setNewFarm={setNewFarm}

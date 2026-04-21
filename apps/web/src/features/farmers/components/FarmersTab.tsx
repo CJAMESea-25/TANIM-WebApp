@@ -33,8 +33,8 @@ const farmerStatus = (idx: number): string => {
 // ─── StatusBadge ─────────────────────────────────────────────────────────────
 
 const statusStyles: Record<string, { bg: string; color: string; border: string }> = {
-  'ACTIVE':  { bg: '#eaf5e9', color: '#2e7d32', border: '#b5ddb3' },
-  'INACTIVE':  { bg: '#f5f5f5', color: '#757575', border: '#d8d8d8' },
+  'ACTIVE': { bg: '#eaf5e9', color: '#2e7d32', border: '#b5ddb3' },
+  'INACTIVE': { bg: '#f5f5f5', color: '#757575', border: '#d8d8d8' },
 };
 
 const StatusBadge = ({ status }: { status: string }) => {
@@ -91,12 +91,12 @@ const FarmersRegistryView = ({
       const assignedFarms = farms.filter(
         (f: any) => f.farmer_id === farmer.farmer_id || f.farmer_id === farmer.id
       );
-      const farmNames   = assignedFarms.map((f: any) => f.farm_name || f.name || '').join('; ');
-      const farmLocs    = assignedFarms.map((f: any) => f.farm_location || f.farmLocation || '').join('; ');
-      const totalArea   = assignedFarms.reduce((acc: number, f: any) => acc + Number(f.farm_measurement || 0), 0);
-      const phone       = farmer.phone_number || farmer.phone || '';
-      const status      = farmerStatus(idx);
-      const regDate     = farmer.created_at
+      const farmNames = assignedFarms.map((f: any) => f.farm_name || f.name || '').join('; ');
+      const farmLocs = assignedFarms.map((f: any) => f.farm_location || f.farmLocation || '').join('; ');
+      const totalArea = assignedFarms.reduce((acc: number, f: any) => acc + Number(f.farm_measurement || 0), 0);
+      const phone = farmer.phone_number || farmer.phone || '';
+      const status = farmerStatus(idx);
+      const regDate = farmer.created_at
         ? new Date(farmer.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
         : '';
 
@@ -119,7 +119,7 @@ const FarmersRegistryView = ({
 
     const csvContent = [headers.join(','), ...rows].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url  = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
     link.setAttribute('download', `farmers_registry_${new Date().toISOString().split('T')[0]}.csv`);
@@ -142,16 +142,16 @@ const FarmersRegistryView = ({
     const name = (farmer.username || farmer.name || farmer.first_name || '').toLowerCase();
     if (searchQuery && !name.includes(searchQuery.toLowerCase())) return false;
     if (statusFilter !== 'all') {
-       const status = farmerStatus(idx).toLowerCase(); // active, inactive
-       if (status !== statusFilter) return false;
+      const status = farmerStatus(idx).toLowerCase(); // active, inactive
+      if (status !== statusFilter) return false;
     }
     return true;
   });
 
   if (sortBy === 'name') {
-      processedFarmers.sort((a, b) => (a.username || a.name || '').localeCompare(b.username || b.name || ''));
+    processedFarmers.sort((a, b) => (a.username || a.name || '').localeCompare(b.username || b.name || ''));
   } else {
-      processedFarmers.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+    processedFarmers.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
   }
 
   const third = Math.floor(processedFarmers.length / 3);
@@ -170,8 +170,7 @@ const FarmersRegistryView = ({
             Farmers Management
           </h1>
           <p style={{ fontSize: 13.5, color: '#6a7a60', margin: 0, lineHeight: 1.6 }}>
-            Central registry of agricultural partners. Monitor farmer certifications,
-            contact details, and land associations across all active regions.
+            List of farmers in the TANIM platform.
           </p>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 }}>
@@ -205,7 +204,7 @@ const FarmersRegistryView = ({
         </div>
         <div style={{ background: '#fff', borderRadius: 18, padding: '20px 24px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', color: '#8aaa7a', textTransform: 'uppercase', marginBottom: 14 }}>Regional Coverage</div>
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', color: '#8aaa7a', textTransform: 'uppercase', marginBottom: 14 }}>Bukidnon Coverage</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {[{ label: 'North', count: north, color: '#3a5a40' }, { label: 'South', count: south, color: '#588157' }, { label: 'Central', count: central, color: '#888' }].map(({ label, count, color }) => (
                 <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: '#4a5a40' }}>
@@ -269,7 +268,10 @@ const FarmersRegistryView = ({
         ) : (
           pageFarmers.map((farmer: any, idx: number) => {
             const globalIdx = (page - 1) * rowsPerPage + idx;
-            const name = farmer.username || farmer.name || 'Unknown Farmer';
+            const fullName = (farmer.first_name || farmer.last_name)
+              ? `${farmer.first_name || ''} ${farmer.last_name || ''}`.trim()
+              : null;
+            const name = fullName || farmer.username || farmer.name || 'Unknown Farmer';
             const initials = farmerInitials(name);
             const bgColor = avatarColor(name);
             const farmerId = formatFarmerId(farmer.farmer_id || farmer.id);
@@ -353,7 +355,10 @@ const FarmersRegistryView = ({
       <Dialog open={!!viewingFarmer} onOpenChange={(open) => !open && setViewingFarmer(null)}>
         <DialogContent style={{ maxWidth: 540, borderRadius: 16, padding: 0, overflow: 'hidden' }}>
           {viewingFarmer && (() => {
-            const name = viewingFarmer.username || viewingFarmer.name || viewingFarmer.first_name || 'Unknown Farmer';
+            const fullName = (viewingFarmer.first_name || viewingFarmer.last_name)
+              ? `${viewingFarmer.first_name || ''} ${viewingFarmer.last_name || ''}`.trim()
+              : null;
+            const name = fullName || viewingFarmer.username || viewingFarmer.name || 'Unknown Farmer';
             const initials = farmerInitials(name);
             const bgColor = avatarColor(name);
             const farmerId = formatFarmerId(viewingFarmer.farmer_id || viewingFarmer.id);
@@ -374,7 +379,7 @@ const FarmersRegistryView = ({
                 </div>
 
                 <div style={{ padding: '28px 32px', background: '#fcfbef', display: 'flex', flexDirection: 'column', gap: 24 }}>
-                  
+
                   {/* Contact Info */}
                   <div>
                     <h3 style={{ fontSize: 13, fontWeight: 700, color: '#3a5a40', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>

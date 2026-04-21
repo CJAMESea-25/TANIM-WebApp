@@ -1343,6 +1343,15 @@ All colors MUST be HSL for proper theming.
   background: #d03030;
 }
 
+.tanim-soil-nodata {
+  background: #f0ece4;
+  color: #7a8a70;
+}
+
+.tanim-soil-nodata .tanim-soil-badge-dot {
+  background: #b0b8a0;
+}
+
 /* Pagination */
 .tanim-farms-pagination {
   display: flex;

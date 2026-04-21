@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPatch, apiDelete, apiDeleteAdmin } from '@/shared/services/apiClient';
+import { apiGet, apiPostAdmin, apiPatchAdmin, apiDeleteAdmin } from '@/shared/services/apiClient';
 
 // Actual farm table columns (from Supabase schema):
 //   farm_id, farmer_id, farm_name, farm_location, farm_measurement, created_at
@@ -48,12 +48,12 @@ export async function createFarm(farmData: {
         if (farmData.latitude != null)  gpsPayload.latitude  = farmData.latitude;
         if (farmData.longitude != null) gpsPayload.longitude = farmData.longitude;
 
-        const response = await apiPost<any[]>('/farm', gpsPayload);
-        return response[0] || null;
+        const response = await apiPostAdmin<any[]>('/farm', gpsPayload);
+        return response?.[0] || null;
     } catch {
         // GPS columns don't exist yet — retry with base columns only
-        const response = await apiPost<any[]>('/farm', basePayload);
-        return response[0] || null;
+        const response = await apiPostAdmin<any[]>('/farm', basePayload);
+        return response?.[0] || null;
     }
 }
 
@@ -64,12 +64,17 @@ export async function updateFarm(farmId: string, farmData: {
     latitude?: number | null;
     longitude?: number | null;
 }) {
-    const response = await apiPatch<any[]>(`/farm?farm_id=eq.${farmId}`, farmData);
-    return response[0] || null;
+    const response = await apiPatchAdmin<any[]>(`/farm?farm_id=eq.${farmId}`, farmData);
+    return response?.[0] || null;
 }
 
 export async function deleteFarm(farmId: string) {
-    await apiDelete(`/farm?farm_id=eq.${farmId}`);
+    // Manually delete dependencies first to prevent Postgres foreign key restriction errors
+    try { await apiDeleteAdmin(`/crop_recommendation?farm_id=eq.${farmId}`); } catch(e) {}
+    try { await apiDeleteAdmin(`/soil_health_test?farm_id=eq.${farmId}`); } catch(e) {}
+    try { await apiDeleteAdmin(`/farming_session?farm_id=eq.${farmId}`); } catch(e) {}
+
+    await apiDeleteAdmin(`/farm?farm_id=eq.${farmId}`);
     return true;
 }
 

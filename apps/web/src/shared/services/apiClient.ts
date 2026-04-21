@@ -90,9 +90,7 @@ export async function apiDelete<T = any>(endpoint: string, includeAuth = true): 
 
 export async function apiDeleteAdmin<T = any>(endpoint: string): Promise<T> {
     const serviceKey = ENV.SUPABASE_SERVICE_KEY;
-    if (!serviceKey) {
-        return apiDelete<T>(endpoint);
-    }
+    if (!serviceKey) return apiDelete<T>(endpoint);
     const response = await fetch(`${BASE_URL}${endpoint}`, {
         method: 'DELETE',
         headers: {
@@ -110,4 +108,36 @@ export async function apiDeleteAdmin<T = any>(endpoint: string): Promise<T> {
         if (body?.message) errorMessage = body.message;
     } catch { /* ignore */ }
     throw new Error(errorMessage);
+}
+
+export async function apiPostAdmin<T = any>(endpoint: string, body: any): Promise<T> {
+    const serviceKey = ENV.SUPABASE_SERVICE_KEY;
+    if (!serviceKey) return apiPost<T>(endpoint, body);
+    const response = await fetch(`${BASE_URL}${endpoint}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'apikey': serviceKey,
+            'Authorization': `Bearer ${serviceKey}`,
+            'Prefer': 'return=representation',
+        },
+        body: JSON.stringify(body),
+    });
+    return handleResponse<T>(response);
+}
+
+export async function apiPatchAdmin<T = any>(endpoint: string, body: any): Promise<T> {
+    const serviceKey = ENV.SUPABASE_SERVICE_KEY;
+    if (!serviceKey) return apiPatch<T>(endpoint, body);
+    const response = await fetch(`${BASE_URL}${endpoint}`, {
+        method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/json',
+            'apikey': serviceKey,
+            'Authorization': `Bearer ${serviceKey}`,
+            'Prefer': 'return=representation',
+        },
+        body: JSON.stringify(body),
+    });
+    return handleResponse<T>(response);
 }

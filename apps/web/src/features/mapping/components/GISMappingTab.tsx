@@ -14,26 +14,23 @@ export const GISMappingTab = ({ farms, farmers = [], dbSoilTests = [], onAddFarm
   const needsSetup = farms.length > 0 && farmsWithCoords.length === 0;
 
   return (
-    <div style={{ padding: '16px 36px 32px 36px', background: '#f0ede4', minHeight: '100vh' }}>
+    <div className="flex w-full min-w-0 flex-col gap-4 bg-[#f0ede4] px-4 py-4 pb-8 sm:px-6 sm:py-5 lg:px-9">
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, marginBottom: 20 }}>
-        <div style={{ maxWidth: 520 }}>
-          <h1 style={{ fontSize: 30, fontWeight: 800, color: '#1e2a1e', margin: '0 0 8px', lineHeight: 1.2, letterSpacing: '-0.5px' }}>
+      <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 max-w-[520px]">
+          <h1 className="text-[clamp(1.375rem,4vw+0.5rem,1.875rem)] font-extrabold leading-tight tracking-tight text-[#1e2a1e]">
             GIS Mapping
           </h1>
-          <p style={{ fontSize: 13.5, color: '#6a7a60', margin: 0, lineHeight: 1.6 }}>
+          <p className="mt-2 text-[13.5px] leading-relaxed text-[#6a7a60]">
             Interactive geographic mapping of registered farms and land parcels.{' '}
             <strong style={{ color: '#3a5a40' }}>{farmsWithCoords.length}/{farms.length}</strong> farms have GPS coordinates.
           </p>
         </div>
         <button
+          type="button"
           onClick={onAddFarmer}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 7, padding: '10px 18px',
-            borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer',
-            background: '#3a5a40', color: '#fff', border: 'none',
-            boxShadow: '0 2px 8px rgba(58,90,64,0.25)',
-          }}
+          className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-[10px] bg-[#3a5a40] px-[18px] py-2.5 text-[13px] font-semibold text-white sm:w-auto"
+          style={{ boxShadow: '0 2px 8px rgba(58,90,64,0.25)' }}
         >
           <Plus size={14} /> Add Farmer
         </button>
@@ -78,8 +75,10 @@ export const GISMappingTab = ({ farms, farmers = [], dbSoilTests = [], onAddFarm
         </div>
       )}
 
-      {/* Live Leaflet map — passes real farm data */}
-      <FarmMap farms={farms} farmers={farmers} soilTests={dbSoilTests} />
+      {/* Live Leaflet map — full width; stacks vertically on narrow screens */}
+      <div className="w-full min-w-0 overflow-x-auto [-webkit-overflow-scrolling:touch]">
+        <FarmMap farms={farms} farmers={farmers} soilTests={dbSoilTests} />
+      </div>
     </div>
   );
 };

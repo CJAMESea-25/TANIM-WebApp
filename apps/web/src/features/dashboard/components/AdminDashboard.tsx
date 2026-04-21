@@ -147,46 +147,40 @@ const DashboardPage = ({
     iso ? new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
 
   return (
-    <div style={{ padding: '16px 36px 32px 36px', background: '#f0ede4', minHeight: '100vh' }}>
+    <div className="min-h-0 bg-[#f0ede4] px-4 py-4 sm:px-6 sm:py-5 lg:px-9 lg:pb-8">
 
       {/* ── Header ── */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, marginBottom: 32 }}>
-        <div style={{ maxWidth: 520 }}>
-          <h1 style={{ fontSize: 30, fontWeight: 800, color: '#1e2a1e', margin: '0 0 8px', lineHeight: 1.2, letterSpacing: '-0.5px' }}>
+      <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+        <div className="min-w-0 max-w-[520px]">
+          <h1 className="text-[clamp(1.375rem,4vw+0.5rem,1.875rem)] font-extrabold leading-tight tracking-tight text-[#1e2a1e]">
             Admin Dashboard
           </h1>
-          <p style={{ fontSize: 13.5, color: '#6a7a60', margin: 0, lineHeight: 1.6 }}>
+          <p className="mt-2 text-[13.5px] leading-relaxed text-[#6a7a60]">
             Farm Soil Health Analysis
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 }}>
+        <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
           <button
             type="button"
             disabled={isExportingSessions}
             onClick={() => void handleExportCSV()}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 7, padding: '10px 18px',
-              borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: isExportingSessions ? 'wait' : 'pointer',
-              background: '#fff', border: '1.5px solid #d5cfc5', color: '#4a5a40',
-              boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-              opacity: isExportingSessions ? 0.7 : 1,
-            }}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-[10px] border-[1.5px] border-[#d5cfc5] bg-white px-[18px] py-2.5 text-[13px] font-semibold text-[#4a5a40] shadow-sm sm:w-auto disabled:opacity-70"
+            style={{ cursor: isExportingSessions ? 'wait' : 'pointer' }}
           >
             <Download size={14} /> {isExportingSessions ? 'Exporting…' : 'Export Report'}
           </button>
-          <button onClick={onAddFarmer} style={{
-            display: 'inline-flex', alignItems: 'center', gap: 7, padding: '10px 18px',
-            borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer',
-            background: '#3a5a40', color: '#fff', border: 'none',
-            boxShadow: '0 2px 8px rgba(58,90,64,0.25)',
-          }}>
+          <button
+            onClick={onAddFarmer}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-[10px] border-none bg-[#3a5a40] px-[18px] py-2.5 text-[13px] font-semibold text-white shadow-md sm:w-auto"
+            style={{ boxShadow: '0 2px 8px rgba(58,90,64,0.25)' }}
+          >
             <Plus size={14} /> Add Farmer
           </button>
         </div>
       </div>
 
-      {/* ── Top 3-column grid ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 2.4fr', gap: 18, marginBottom: 20 }}>
+      {/* ── Top summary + chart grid ── */}
+      <div className="mb-5 grid grid-cols-1 gap-[18px] md:grid-cols-2 xl:grid-cols-[1fr_1fr_minmax(0,2.4fr)]">
 
         {/* Total Farmers */}
         <div style={{ background: '#e8e3d8', borderRadius: 18, padding: '28px 26px', minHeight: 210 }}>
@@ -197,7 +191,7 @@ const DashboardPage = ({
             <span style={{ fontSize: 11, fontWeight: 700, background: '#fff', color: '#3a5a40', padding: '3px 10px', borderRadius: 20, border: '1px solid #d0cac0' }}>+12%</span>
           </div>
           <div style={{ fontSize: 12, fontWeight: 600, color: '#7a8a70', marginBottom: 6, letterSpacing: '0.02em' }}>Total Farmers</div>
-          <div style={{ fontSize: 52, fontWeight: 800, color: '#1e2a1e', lineHeight: 1 }}>{farmers.length || 0}</div>
+          <div className="text-[clamp(2rem,8vw,3.25rem)] font-extrabold leading-none text-[#1e2a1e]">{farmers.length || 0}</div>
         </div>
 
         {/* Total Farms */}
@@ -209,14 +203,14 @@ const DashboardPage = ({
             <span style={{ fontSize: 11, fontWeight: 700, background: '#fff', color: '#3a5a40', padding: '3px 10px', borderRadius: 20, border: '1px solid #d0cac0' }}>Active</span>
           </div>
           <div style={{ fontSize: 12, fontWeight: 600, color: '#7a8a70', marginBottom: 6, letterSpacing: '0.02em' }}>Total Farms</div>
-          <div style={{ fontSize: 52, fontWeight: 800, color: '#1e2a1e', lineHeight: 1 }}>{farms.length || 0}</div>
+          <div className="text-[clamp(2rem,8vw,3.25rem)] font-extrabold leading-none text-[#1e2a1e]">{farms.length || 0}</div>
         </div>
 
         {/* Soil Health Trends */}
-        <div style={{ background: '#fff', borderRadius: 18, padding: '24px 28px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+        <div className="min-w-0 md:col-span-2 xl:col-span-1" style={{ background: '#fff', borderRadius: 18, padding: '24px 28px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
           <div style={{ fontSize: 16, fontWeight: 700, color: '#1e2a1e', lineHeight: 1.3 }}>Soil Health<br />Trends</div>
           <div style={{ fontSize: 11, color: '#9aaa8a', marginTop: 4, marginBottom: 8 }}>Metric distribution over time (NPK Levels)</div>
-          <div style={{ height: 160 }}>
+          <div className="relative h-36 w-full sm:h-40">
             <Line data={soilLineData} options={soilChartOptions} />
           </div>
         </div>
@@ -227,7 +221,7 @@ const DashboardPage = ({
         <div style={{ fontSize: 13, fontWeight: 700, color: '#3a5a40', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 14 }}>
           Recent Activity
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
 
           {/* Latest Added Farm */}
           <div style={{ background: '#fff', borderRadius: 16, padding: '20px 22px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -361,9 +355,9 @@ import { SuperAdminPage } from '@/features/profile/components/SuperAdminPage';
 
 // ─── Admin Profile page (stays in dashboard) ───────────────────────────────
 const AdminProfilePage = ({ profile }: { profile: any }) => (
-  <div style={{ padding: '32px 36px', background: '#f0ede4', minHeight: '100vh' }}>
-    <div style={{ marginBottom: 32 }}>
-      <h1 style={{ fontSize: 30, fontWeight: 800, color: '#1e2a1e', margin: '0 0 8px', lineHeight: 1.2, letterSpacing: '-0.5px' }}>
+  <div className="min-h-0 bg-[#f0ede4] px-4 py-6 sm:px-8 lg:px-9">
+    <div className="mb-8">
+      <h1 className="text-[clamp(1.375rem,4vw+0.5rem,1.875rem)] font-extrabold tracking-tight text-[#1e2a1e]">
         Admin Profile
       </h1>
       <p style={{ fontSize: 13.5, color: '#6a7a60', margin: 0, lineHeight: 1.6 }}>
@@ -708,14 +702,23 @@ export const AdminDashboard = () => {
     >
       {renderPage()}
 
-      {/* Global Add Farmer modal */}
+      {/* Global Add Farmer modal — scrollable on small / short viewports */}
       <Dialog open={isAddFarmerOpen} onOpenChange={setIsAddFarmerOpen}>
-        <DialogContent style={{ maxWidth: 520 }}>
-          <DialogHeader><DialogTitle>Add New Farmer</DialogTitle></DialogHeader>
-          <div className="space-y-4 py-2">
+        <DialogContent
+          className="flex max-h-[90dvh] w-[calc(100vw-1.25rem)] max-w-[520px] flex-col gap-0 overflow-hidden border bg-background p-0 shadow-lg sm:w-full
+            left-[50%] top-[max(0.5rem,env(safe-area-inset-top,0px))] z-50 -translate-x-1/2 translate-y-0
+            sm:top-[50%] sm:-translate-y-1/2"
+        >
+          <div className="shrink-0 border-b px-6 pb-3 pt-6 pr-14">
+            <DialogHeader className="text-left">
+              <DialogTitle>Add New Farmer</DialogTitle>
+            </DialogHeader>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-auto overscroll-contain px-6 py-3 [-webkit-overflow-scrolling:touch]">
+          <div className="space-y-4 min-w-0">
 
             {/* Name row */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>First Name</Label>
                 <Input placeholder="e.g. John" value={newFarmer.firstName} onChange={e => setNewFarmer({ ...newFarmer, firstName: e.target.value })} />
@@ -734,7 +737,7 @@ export const AdminDashboard = () => {
             <div style={{ borderTop: '1px solid #f0ede4', margin: '4px 0' }} />
 
             {/* Credentials */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Username <span style={{ color: '#e53935', marginLeft: 2 }}>*</span></Label>
                 <Input placeholder="Choose username" value={newFarmer.username} onChange={e => setNewFarmer({ ...newFarmer, username: e.target.value })} />
@@ -748,7 +751,7 @@ export const AdminDashboard = () => {
             <div style={{ borderTop: '1px solid #f0ede4', margin: '4px 0' }} />
 
             {/* Farm details */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Farm Name</Label>
                 <Input placeholder="e.g. Green Valley" value={newFarmer.farm_name} onChange={e => setNewFarmer({ ...newFarmer, farm_name: e.target.value })} />
@@ -759,7 +762,7 @@ export const AdminDashboard = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Latitude (GPS) 🗺</Label>
                 <Input type="number" step="any" placeholder="e.g. 8.4870" value={newFarmer.latitude} onChange={e => setNewFarmer({ ...newFarmer, latitude: e.target.value })} />
@@ -775,22 +778,34 @@ export const AdminDashboard = () => {
               <Input type="number" step="any" placeholder="e.g. 5.5" value={newFarmer.farm_measurement} onChange={e => setNewFarmer({ ...newFarmer, farm_measurement: e.target.value })} />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddFarmerOpen(false)}>Cancel</Button>
-            <Button onClick={handleAddFarmerSubmit} disabled={isAddingFarmer || !newFarmer.username || !newFarmer.password}>
-              {isAddingFarmer ? 'Registering...' : 'Register Farmer'}
-            </Button>
-          </DialogFooter>
+          </div>
+          <div className="shrink-0 border-t bg-background px-6 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button variant="outline" className="w-full sm:w-auto" onClick={() => setIsAddFarmerOpen(false)}>Cancel</Button>
+              <Button className="w-full sm:w-auto" onClick={handleAddFarmerSubmit} disabled={isAddingFarmer || !newFarmer.username || !newFarmer.password}>
+                {isAddingFarmer ? 'Registering...' : 'Register Farmer'}
+              </Button>
+            </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 
       {/* Edit Farmer Modal */}
       <Dialog open={isEditFarmerOpen} onOpenChange={setIsEditFarmerOpen}>
-        <DialogContent style={{ maxWidth: 520 }}>
-          <DialogHeader><DialogTitle>Edit Farmer</DialogTitle></DialogHeader>
+        <DialogContent
+          className="flex max-h-[90dvh] w-[calc(100vw-1.25rem)] max-w-[520px] flex-col gap-0 overflow-hidden border bg-background p-0 shadow-lg sm:w-full
+            left-[50%] top-[max(0.5rem,env(safe-area-inset-top,0px))] z-50 -translate-x-1/2 translate-y-0
+            sm:top-[50%] sm:-translate-y-1/2"
+        >
+          <div className="shrink-0 border-b px-6 pb-3 pt-6 pr-14">
+            <DialogHeader className="text-left">
+              <DialogTitle>Edit Farmer</DialogTitle>
+            </DialogHeader>
+          </div>
           {editingFarmer && (
-            <div className="space-y-4 py-2">
-              <div className="grid grid-cols-2 gap-3">
+            <div className="min-h-0 flex-1 overflow-y-auto overflow-x-auto overscroll-contain px-6 py-3 [-webkit-overflow-scrolling:touch]">
+            <div className="space-y-4 min-w-0">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>First Name</Label>
                   <Input value={editingFarmer.firstName} onChange={e => setEditingFarmer({ ...editingFarmer, firstName: e.target.value })} placeholder="e.g. John" />
@@ -814,13 +829,16 @@ export const AdminDashboard = () => {
                 <Input type="password" placeholder="(unchanged)" value={editingFarmer.password} onChange={e => setEditingFarmer({ ...editingFarmer, password: e.target.value })} />
               </div>
             </div>
+            </div>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditFarmerOpen(false)}>Cancel</Button>
-            <Button onClick={handleEditFarmerSubmit} disabled={isEditingFarmer || !editingFarmer?.username}>
-              {isEditingFarmer ? 'Saving...' : 'Save Changes'}
-            </Button>
-          </DialogFooter>
+          <div className="shrink-0 border-t bg-background px-6 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button variant="outline" className="w-full sm:w-auto" onClick={() => setIsEditFarmerOpen(false)}>Cancel</Button>
+              <Button className="w-full sm:w-auto" onClick={handleEditFarmerSubmit} disabled={isEditingFarmer || !editingFarmer?.username}>
+                {isEditingFarmer ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 

@@ -243,7 +243,8 @@ const FarmersRegistryView = ({
         </div>
       </div>
 
-      <div style={{ background: '#fff', borderRadius: 14, boxShadow: '0 2px 10px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
+      <div className="tanim-farms-table-outer">
+      <div style={{ background: '#fff', borderRadius: 14, boxShadow: '0 2px 10px rgba(0,0,0,0.06)', overflow: 'hidden', minWidth: '640px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '2.5fr 2fr 2fr 1fr', padding: '12px 20px', background: '#f8f6f2', borderBottom: '1px solid #ece8e0' }}>
           {['Name', 'Contact Information', 'Associated Farm', 'Actions'].map(col => (
             <div key={col} style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', color: '#8aaa7a', textTransform: 'uppercase', textAlign: col === 'Actions' ? 'right' : 'left' }}>{col}</div>
@@ -337,6 +338,7 @@ const FarmersRegistryView = ({
             </div>
           </div>
         )}
+      </div>
       </div>
 
       {/* Farmer Details Modal */}
@@ -457,9 +459,18 @@ export const FarmersTab = ({
   <div>
     {/* Register New Farmer Dialog */}
     <Dialog open={isAddFarmerOpen} onOpenChange={setIsAddFarmerOpen}>
-      <DialogContent>
-        <DialogHeader><DialogTitle>Register New Farmer</DialogTitle></DialogHeader>
-        <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto pr-2">
+      <DialogContent
+        className="flex max-h-[90dvh] w-[calc(100vw-1.25rem)] max-w-lg flex-col gap-0 overflow-hidden border bg-background p-0 shadow-lg sm:w-full
+          left-[50%] top-[max(0.5rem,env(safe-area-inset-top,0px))] z-50 -translate-x-1/2 translate-y-0
+          sm:top-[50%] sm:-translate-y-1/2"
+      >
+        <div className="shrink-0 border-b px-6 pb-3 pt-6 pr-14">
+          <DialogHeader className="text-left">
+            <DialogTitle>Register New Farmer</DialogTitle>
+          </DialogHeader>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-auto overscroll-contain px-6 py-3 [-webkit-overflow-scrolling:touch]">
+        <div className="space-y-4 min-w-0">
           <div className="space-y-2">
             <Label>Username</Label>
             <Input value={newFarmer.username} onChange={e => setNewFarmer({ ...newFarmer, username: e.target.value })} placeholder="Enter farmer's username" />
@@ -505,12 +516,15 @@ export const FarmersTab = ({
             </Select>
           </div>
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setIsAddFarmerOpen(false)}>Cancel</Button>
-          <Button onClick={handleAddFarmerSubmit} disabled={isAddingFarmer || !newFarmer.username || !newFarmer.password}>
-            {isAddingFarmer ? 'Saving...' : 'Save Farmer'}
-          </Button>
-        </DialogFooter>
+        </div>
+        <div className="shrink-0 border-t bg-background px-6 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setIsAddFarmerOpen(false)}>Cancel</Button>
+            <Button className="w-full sm:w-auto" onClick={handleAddFarmerSubmit} disabled={isAddingFarmer || !newFarmer.username || !newFarmer.password}>
+              {isAddingFarmer ? 'Saving...' : 'Save Farmer'}
+            </Button>
+          </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
 

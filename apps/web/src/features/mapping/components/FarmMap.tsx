@@ -48,6 +48,27 @@ const BukidnonMinZoom = () => {
   return null;
 };
 
+/** Fixes blank/partial tiles after flex order or viewport size changes (phones, split view). */
+const InvalidateSizeOnLayout = () => {
+  const map = useMap();
+  useEffect(() => {
+    const run = () => {
+      map.invalidateSize({ pan: false });
+    };
+    run();
+    const t = window.setTimeout(run, 200);
+    window.addEventListener('orientationchange', run);
+    const ro = new ResizeObserver(run);
+    ro.observe(map.getContainer());
+    return () => {
+      window.clearTimeout(t);
+      window.removeEventListener('orientationchange', run);
+      ro.disconnect();
+    };
+  }, [map]);
+  return null;
+};
+
 // Auto-fit map to show all farm markers (map maxBounds keeps view inside Bukidnon)
 const FitBounds = ({ positions }: { positions: [number, number][] }) => {
   const map = useMap();
@@ -109,18 +130,14 @@ export const FarmMap: React.FC<FarmMapProps> = ({ farms = [], farmers = [], soil
   };
 
   return (
-    <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-      {/* Map container */}
+    <div className="flex w-full min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:gap-4">
+      {/* Map container — below farm list on small screens (order-2); left column on lg+ */}
       <div
+        className="relative order-2 w-full min-h-0 flex-1 overflow-hidden rounded-2xl border-[1.5px] border-[#c4d8b0] shadow-[0_4px_24px_rgba(58,90,64,0.1)] lg:order-1"
         style={{
-          flex: 1,
-          height: 520,
-          borderRadius: 16,
-          overflow: 'hidden',
-          border: '1.5px solid #c4d8b0',
-          boxShadow: '0 4px 24px rgba(58,90,64,0.10)',
-          position: 'relative',
           minWidth: 0,
+          /* Taller on phones so the map is usable after scrolling past the list */
+          height: 'clamp(300px, min(62dvh, 560px), 520px)',
         }}
       >
         <MapContainer
@@ -131,6 +148,7 @@ export const FarmMap: React.FC<FarmMapProps> = ({ farms = [], farmers = [], soil
           maxBounds={BUKIDNON_BOUNDS}
           maxBoundsViscosity={1}
         >
+          <InvalidateSizeOnLayout />
           <BukidnonMinZoom />
           <TileLayer
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -207,17 +225,15 @@ export const FarmMap: React.FC<FarmMapProps> = ({ farms = [], farmers = [], soil
         )}
       </div>
 
-      {/* Side panel — farm list with GPS status */}
+      {/* Side panel — shown first on small screens (order-1) so map sits below and stays visible when scrolled to */}
       <div
+        className="order-1 w-full max-h-[min(240px,38vh)] shrink-0 lg:order-2 lg:max-h-[min(520px,85vh)] lg:w-[240px]"
         style={{
-          width: 240,
-          flexShrink: 0,
           background: '#fff',
           borderRadius: 14,
           border: '1.5px solid #e0ddd4',
           boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
           overflow: 'hidden',
-          maxHeight: 520,
           display: 'flex',
           flexDirection: 'column',
         }}

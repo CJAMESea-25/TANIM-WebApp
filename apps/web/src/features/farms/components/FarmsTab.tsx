@@ -489,7 +489,8 @@ export const FarmsTab = ({
         </div>
       </div>
 
-      <div className="tanim-farms-table-wrap" style={{ marginTop: '16px' }}>
+      <div className="tanim-farms-table-outer" style={{ marginTop: '16px' }}>
+        <div className="tanim-farms-table-wrap">
         {processedFarms.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '48px 24px', color: '#8a9880', fontSize: '14px' }}>
             No farms match your search or filters.
@@ -598,6 +599,7 @@ export const FarmsTab = ({
             </div>
           </>
         )}
+        </div>
       </div>
 
       {/* Edit Farm Dialog */}

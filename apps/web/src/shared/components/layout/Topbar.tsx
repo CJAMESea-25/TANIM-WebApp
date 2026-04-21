@@ -1,5 +1,6 @@
 import React from 'react';
-import { Bell, HelpCircle } from 'lucide-react';
+import { Bell } from 'lucide-react';
+import { SidebarTrigger } from '@/components/ui/sidebar';
 
 interface TopbarProps {
   userName?: string;
@@ -68,8 +69,8 @@ export const Topbar: React.FC<TopbarProps> = ({
 
   return (
     <header className="tanim-topbar">
-      {/* Search */}
-      <div className="tanim-topbar-search" style={{ position: 'relative' }}>
+      <SidebarTrigger className="tanim-topbar-menu-trigger shrink-0 md:hidden" />
+      <div className="tanim-topbar-search min-w-0 flex-1" style={{ position: 'relative' }}>
         <svg className="tanim-topbar-search-icon" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" width={16} height={16}>
           <circle cx="11" cy="11" r="8" />
           <path d="M21 21l-4.35-4.35" />
@@ -87,7 +88,7 @@ export const Topbar: React.FC<TopbarProps> = ({
         {/* Floating Results Dropdown */}
         {showDropdown && (
           <div style={{
-            position: 'absolute', top: '110%', left: 0, width: '100%', minWidth: 320, background: '#fff', borderRadius: 12,
+            position: 'absolute', top: '110%', left: 0, width: '100%', maxWidth: 'min(100vw - 32px, 400px)', minWidth: 0, background: '#fff', borderRadius: 12,
             boxShadow: '0 8px 30px rgba(0,0,0,0.12)', border: '1px solid #e0dacf', overflow: 'hidden', zIndex: 1000
           }}>
             {hasResults ? (
@@ -151,7 +152,7 @@ export const Topbar: React.FC<TopbarProps> = ({
 
           {showNotifs && (
             <div style={{
-              position: 'absolute', top: 'calc(100% + 8px)', right: 0, width: 320, background: '#fff', borderRadius: 12,
+              position: 'absolute', top: 'calc(100% + 8px)', right: 0, width: 'min(100vw - 24px, 320px)', maxWidth: '100vw', background: '#fff', borderRadius: 12,
               boxShadow: '0 8px 30px rgba(0,0,0,0.12)', border: '1px solid #e0dacf', overflow: 'hidden', zIndex: 1000
             }}>
               <div style={{ padding: '14px 16px', borderBottom: '1px solid #f0ece4', fontSize: 14, fontWeight: 700, color: '#2e3a28' }}>

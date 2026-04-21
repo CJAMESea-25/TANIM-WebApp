@@ -461,17 +461,12 @@ export const FertilizerTab = ({ farms, onAddFarmer }: FertilizerTabProps) => {
   const total = sorted.length;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#f0ede4', overflow: 'hidden' }}>
-
+    <div className="flex w-full min-w-0 flex-col bg-[#f0ede4]">
       {/* ── Top header bar ── */}
-      <div style={{
-        flexShrink: 0,
-        padding: '20px 28px 16px',
-        background: '#f0ede4',
-        borderBottom: '1.5px solid #e0d9cc',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap',
-      }}>
-        <div>
+      <div
+        className="flex shrink-0 flex-col gap-3 border-b-[1.5px] border-[#e0d9cc] bg-[#f0ede4] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-7"
+      >
+        <div className="min-w-0">
           <h1 style={{ fontSize: 22, fontWeight: 900, color: '#1e2a1e', margin: '0 0 2px', letterSpacing: '-0.4px' }}>
             Fertilizer Management
           </h1>
@@ -484,25 +479,23 @@ export const FertilizerTab = ({ farms, onAddFarmer }: FertilizerTabProps) => {
             )}
           </p>
         </div>
-        <button onClick={onAddFarmer} style={{
-          display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 16px',
-          borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer',
-          background: '#3a5a40', color: '#fff', border: 'none',
-          boxShadow: '0 2px 8px rgba(58,90,64,0.25)',
-        }}>
+        <button
+          type="button"
+          onClick={onAddFarmer}
+          className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-[10px] border-none bg-[#3a5a40] px-4 py-2.5 text-[13px] font-semibold text-white sm:w-auto"
+          style={{ boxShadow: '0 2px 8px rgba(58,90,64,0.25)' }}
+        >
           <Plus size={14} /> Add Farmer
         </button>
       </div>
 
-      {/* ── Body: split panel ── */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+      {/* ── Body: stacked on phone / tablet portrait, side-by-side on lg+ ── */}
+      <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col lg:flex-row lg:overflow-hidden">
 
         {/* ── LEFT: List panel ── */}
-        <div style={{
-          width: 300, minWidth: 260, maxWidth: 340, flexShrink: 0,
-          display: 'flex', flexDirection: 'column',
-          background: '#f8f6f0', borderRight: '1.5px solid #e0d9cc',
-        }}>
+        <div
+          className="flex max-h-[min(42vh,380px)] w-full min-w-0 shrink-0 flex-col border-b-[1.5px] border-[#e0d9cc] bg-[#f8f6f0] lg:max-h-none lg:w-[300px] lg:min-w-[260px] lg:max-w-[340px] lg:border-b-0 lg:border-r-[1.5px]"
+        >
 
           {/* Search + filter */}
           <div style={{ padding: '14px 12px 10px', borderBottom: '1px solid #e8e3d8', display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -585,8 +578,8 @@ export const FertilizerTab = ({ farms, onAddFarmer }: FertilizerTabProps) => {
           )}
         </div>
 
-        {/* ── RIGHT: Detail panel ── */}
-        <div style={{ flex: 1, overflow: 'hidden', background: '#fff' }}>
+        {/* ── RIGHT: Detail panel (below list on small screens) ── */}
+        <div className="min-h-[min(50vh,520px)] w-full min-w-0 flex-1 overflow-y-auto overflow-x-hidden bg-white lg:min-h-0">
           {selectedEntry ? <DetailPanel entry={selectedEntry} /> : <EmptySelection />}
         </div>
       </div>

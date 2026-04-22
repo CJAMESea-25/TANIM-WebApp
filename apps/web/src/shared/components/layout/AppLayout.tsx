@@ -21,6 +21,7 @@ import {
   TANIM_PRIMARY_NAV,
   TanimNavItem,
 } from './Sidebar';
+import { SUPER_ADMIN_USERNAME } from '@/shared/constants/superAdmin';
 
 interface AppLayoutProps {
   activePage: SidebarPage;
@@ -149,7 +150,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   onNavigateToFarmer,
   children,
 }) => {
-  const isSuperAdmin = userName === 'superadmin';
+  const isSuperAdmin = userName === SUPER_ADMIN_USERNAME;
 
   return (
     <SidebarProvider className="min-h-dvh w-full bg-[#f5f0e8] supports-[height:100dvh]:min-h-dvh">

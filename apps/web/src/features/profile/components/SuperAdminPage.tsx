@@ -7,11 +7,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getAdmins, createAdmin, updateAdmin, deleteAdmin,
 } from '@/features/profile/services/adminService';
-
-// ── The hardcoded super admin username ─────────────────────────────────────
-// Only an account with this username can add / edit / delete other admins.
-// Change this to match whatever username you created in Supabase.
-const SUPER_ADMIN_USERNAME = 'superadmin@tanim.agri';
+import { SUPER_ADMIN_USERNAME } from '@/shared/constants/superAdmin';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 function fmtDate(iso: string) {

@@ -456,18 +456,21 @@ export const AdminDashboard = () => {
   const [newFarmer, setNewFarmer] = React.useState({
     firstName: '', lastName: '', contactInfo: '', username: '', password: '',
     farm_name: '', farmLocation: '', farm_measurement: '', soilType: 'loam',
-    latitude: '', longitude: '',
+    latitude: '', longitude: '', language: 'en',
   });
   const [isAddingFarmer, setIsAddingFarmer] = React.useState(false);
+  const [addFarmerError, setAddFarmerError] = React.useState('');
   const [isAddFarmOpen, setIsAddFarmOpen] = React.useState(false);
   const [selectedFarmerId, setSelectedFarmerId] = React.useState<string | null>(null);
   const [newFarm, setNewFarm] = React.useState({ farm_name: '', farm_measurement: '', soilType: 'loam', farm_location: '', latitude: '', longitude: '' });
   const [isAddingFarm, setIsAddingFarm] = React.useState(false);
+  const [addFarmError, setAddFarmError] = React.useState('');
 
   // ── Edit/Delete Farmer state ──
   const [isEditFarmerOpen, setIsEditFarmerOpen] = React.useState(false);
   const [editingFarmer, setEditingFarmer] = React.useState<any>(null);
   const [isEditingFarmer, setIsEditingFarmer] = React.useState(false);
+  const [editFarmerError, setEditFarmerError] = React.useState('');
 
   const [isDeleteFarmerOpen, setIsDeleteFarmerOpen] = React.useState(false);
   const [deletingFarmerId, setDeletingFarmerId] = React.useState<string | null>(null);
@@ -510,6 +513,7 @@ export const AdminDashboard = () => {
   const handleAddFarmerSubmit = async () => {
     if (!newFarmer.username || !newFarmer.password) return;
     try {
+      setAddFarmerError('');
       setIsAddingFarmer(true);
       const createdFarmer = await createFarmer({
         username: newFarmer.username,
@@ -531,14 +535,26 @@ export const AdminDashboard = () => {
         queryClient.invalidateQueries({ queryKey: ['farms'] });
       }
       setIsAddFarmerOpen(false);
-      setNewFarmer({ firstName: '', lastName: '', contactInfo: '', username: '', password: '', farm_name: '', farmLocation: '', farm_measurement: '', soilType: 'loam', latitude: '', longitude: '' });
+      setNewFarmer({ firstName: '', lastName: '', contactInfo: '', username: '', password: '', farm_name: '', farmLocation: '', farm_measurement: '', soilType: 'loam', latitude: '', longitude: '', language: 'en' });
       queryClient.invalidateQueries({ queryKey: ['farmers'] });
-    } catch (err) { console.error(err); } finally { setIsAddingFarmer(false); }
+    } catch (err: unknown) {
+      console.error(err);
+      const message = err instanceof Error ? err.message : 'Could not register farmer.';
+      setAddFarmerError(message);
+    } finally { setIsAddingFarmer(false); }
   };
 
   const handleAddFarmSubmit = async () => {
-    if (!newFarm.farm_name || !selectedFarmerId) return;
+    if (!newFarm.farm_name) {
+      setAddFarmError('Farm name is required.');
+      return;
+    }
+    if (!selectedFarmerId) {
+      setAddFarmError('Select which farmer owns this farm.');
+      return;
+    }
     try {
+      setAddFarmError('');
       setIsAddingFarm(true);
       await createFarm({
         farm_name: newFarm.farm_name,
@@ -552,7 +568,11 @@ export const AdminDashboard = () => {
       setSelectedFarmerId(null);
       setNewFarm({ farm_name: '', farm_measurement: '', soilType: 'loam', farm_location: '', latitude: '', longitude: '' });
       queryClient.invalidateQueries({ queryKey: ['farms'] });
-    } catch (err) { console.error(err); } finally { setIsAddingFarm(false); }
+    } catch (err: unknown) {
+      console.error(err);
+      const message = err instanceof Error ? err.message : 'Could not add farm.';
+      setAddFarmError(message);
+    } finally { setIsAddingFarm(false); }
   };
 
   const onEditFarmerClick = (farmer: any) => {
@@ -575,6 +595,7 @@ export const AdminDashboard = () => {
   const handleEditFarmerSubmit = async () => {
     if (!editingFarmer) return;
     try {
+      setEditFarmerError('');
       setIsEditingFarmer(true);
       await updateFarmer(editingFarmer.id, {
         username: editingFarmer.username,
@@ -586,7 +607,11 @@ export const AdminDashboard = () => {
       setIsEditFarmerOpen(false);
       setEditingFarmer(null);
       queryClient.invalidateQueries({ queryKey: ['farmers'] });
-    } catch (err) { console.error(err); } finally { setIsEditingFarmer(false); }
+    } catch (err: unknown) {
+      console.error(err);
+      const message = err instanceof Error ? err.message : 'Could not save farmer.';
+      setEditFarmerError(message);
+    } finally { setIsEditingFarmer(false); }
   };
 
   const handleDeleteFarmerSubmit = async () => {
@@ -646,6 +671,8 @@ export const AdminDashboard = () => {
             selectedFarmerId={selectedFarmerId} setSelectedFarmerId={setSelectedFarmerId}
             initialViewFarmId={pendingFarmModal?.farm_id || pendingFarmModal?.id || null}
             onInitialViewConsumed={() => setPendingFarmModal(null)}
+            addFarmError={addFarmError}
+            onAddFarmOpenChange={(open) => { if (!open) setAddFarmError(''); }}
           />
         );
 
@@ -665,6 +692,10 @@ export const AdminDashboard = () => {
             onDeleteFarmer={onDeleteFarmerClick}
             initialViewFarmerId={pendingFarmerModal?.farmer_id || pendingFarmerModal?.id || null}
             onInitialViewConsumed={() => setPendingFarmerModal(null)}
+            addFarmerError={addFarmerError}
+            addFarmError={addFarmError}
+            onAddFarmOpenChange={(open) => { if (!open) setAddFarmError(''); }}
+            onAddFarmerOpenChange={(open) => { if (!open) setAddFarmerError(''); }}
           />
         );
 
@@ -703,7 +734,7 @@ export const AdminDashboard = () => {
       {renderPage()}
 
       {/* Global Add Farmer modal — scrollable on small / short viewports */}
-      <Dialog open={isAddFarmerOpen} onOpenChange={setIsAddFarmerOpen}>
+      <Dialog open={isAddFarmerOpen} onOpenChange={(open) => { setIsAddFarmerOpen(open); if (!open) setAddFarmerError(''); }}>
         <DialogContent
           className="flex max-h-[90dvh] w-[calc(100vw-1.25rem)] max-w-[520px] flex-col gap-0 overflow-hidden border bg-background p-0 shadow-lg sm:w-full
             left-[50%] top-[max(0.5rem,env(safe-area-inset-top,0px))] z-50 -translate-x-1/2 translate-y-0
@@ -716,6 +747,11 @@ export const AdminDashboard = () => {
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto overflow-x-auto overscroll-contain px-6 py-3 [-webkit-overflow-scrolling:touch]">
           <div className="space-y-4 min-w-0">
+            {addFarmerError && (
+              <div style={{ background: '#fff5f5', border: '1.5px solid #fca5a5', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: '#b91c1c' }}>
+                {addFarmerError}
+              </div>
+            )}
 
             {/* Name row */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -792,7 +828,7 @@ export const AdminDashboard = () => {
       </Dialog>
 
       {/* Edit Farmer Modal */}
-      <Dialog open={isEditFarmerOpen} onOpenChange={setIsEditFarmerOpen}>
+      <Dialog open={isEditFarmerOpen} onOpenChange={(open) => { setIsEditFarmerOpen(open); if (!open) setEditFarmerError(''); }}>
         <DialogContent
           className="flex max-h-[90dvh] w-[calc(100vw-1.25rem)] max-w-[520px] flex-col gap-0 overflow-hidden border bg-background p-0 shadow-lg sm:w-full
             left-[50%] top-[max(0.5rem,env(safe-area-inset-top,0px))] z-50 -translate-x-1/2 translate-y-0
@@ -806,6 +842,11 @@ export const AdminDashboard = () => {
           {editingFarmer && (
             <div className="min-h-0 flex-1 overflow-y-auto overflow-x-auto overscroll-contain px-6 py-3 [-webkit-overflow-scrolling:touch]">
             <div className="space-y-4 min-w-0">
+              {editFarmerError && (
+                <div style={{ background: '#fff5f5', border: '1.5px solid #fca5a5', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: '#b91c1c' }}>
+                  {editFarmerError}
+                </div>
+              )}
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>First Name</Label>

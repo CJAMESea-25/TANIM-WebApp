@@ -444,6 +444,10 @@ export interface FarmersTabProps {
   onDeleteFarmer: (farmer: any) => void;
   initialViewFarmerId?: string | null;
   onInitialViewConsumed?: () => void;
+  addFarmerError?: string;
+  addFarmError?: string;
+  onAddFarmOpenChange?: (open: boolean) => void;
+  onAddFarmerOpenChange?: (open: boolean) => void;
 }
 
 export const FarmersTab = ({
@@ -454,11 +458,15 @@ export const FarmersTab = ({
   selectedFarmerId, setSelectedFarmerId,
   newFarm, setNewFarm, isAddingFarm, handleAddFarmSubmit,
   onEditFarmer, onDeleteFarmer,
-  initialViewFarmerId, onInitialViewConsumed
+  initialViewFarmerId, onInitialViewConsumed,
+  addFarmerError = '',
+  addFarmError = '',
+  onAddFarmOpenChange,
+  onAddFarmerOpenChange,
 }: FarmersTabProps) => (
   <div>
     {/* Register New Farmer Dialog */}
-    <Dialog open={isAddFarmerOpen} onOpenChange={setIsAddFarmerOpen}>
+    <Dialog open={isAddFarmerOpen} onOpenChange={(open) => { setIsAddFarmerOpen(open); onAddFarmerOpenChange?.(open); }}>
       <DialogContent
         className="flex max-h-[90dvh] w-[calc(100vw-1.25rem)] max-w-lg flex-col gap-0 overflow-hidden border bg-background p-0 shadow-lg sm:w-full
           left-[50%] top-[max(0.5rem,env(safe-area-inset-top,0px))] z-50 -translate-x-1/2 translate-y-0
@@ -471,6 +479,11 @@ export const FarmersTab = ({
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto overflow-x-auto overscroll-contain px-6 py-3 [-webkit-overflow-scrolling:touch]">
         <div className="space-y-4 min-w-0">
+          {addFarmerError && (
+            <div style={{ background: '#fff5f5', border: '1.5px solid #fca5a5', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: '#b91c1c' }}>
+              {addFarmerError}
+            </div>
+          )}
           <div className="space-y-2">
             <Label>Username</Label>
             <Input value={newFarmer.username} onChange={e => setNewFarmer({ ...newFarmer, username: e.target.value })} placeholder="Enter farmer's username" />
@@ -481,7 +494,7 @@ export const FarmersTab = ({
           </div>
           <div className="space-y-2">
             <Label>Phone</Label>
-            <Input value={newFarmer.phone} onChange={e => setNewFarmer({ ...newFarmer, phone: e.target.value })} placeholder="Enter phone number" />
+            <Input value={newFarmer.contactInfo ?? ''} onChange={e => setNewFarmer({ ...newFarmer, contactInfo: e.target.value })} placeholder="Enter phone number" />
           </div>
           <div className="space-y-2">
             <Label>Language Support</Label>
@@ -530,7 +543,7 @@ export const FarmersTab = ({
     </Dialog>
 
     {/* Add Farm Dialog */}
-    <Dialog open={isAddFarmOpen} onOpenChange={setIsAddFarmOpen}>
+    <Dialog open={isAddFarmOpen} onOpenChange={(open) => { setIsAddFarmOpen(open); onAddFarmOpenChange?.(open); }}>
       <DialogContent
         className="flex max-h-[90dvh] w-[calc(100vw-1.25rem)] max-w-[520px] flex-col gap-0 overflow-hidden border bg-background p-0 shadow-lg sm:w-full
           left-[50%] top-[max(0.5rem,env(safe-area-inset-top,0px))] z-50 -translate-x-1/2 translate-y-0
@@ -541,6 +554,11 @@ export const FarmersTab = ({
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto overflow-x-auto overscroll-contain px-6 py-3 [-webkit-overflow-scrolling:touch]">
         <div className="space-y-4 min-w-0">
+          {addFarmError && (
+            <div style={{ background: '#fff5f5', border: '1.5px solid #fca5a5', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: '#b91c1c' }}>
+              {addFarmError}
+            </div>
+          )}
           <div className="space-y-2">
             <Label>Farm Name</Label>
             <Input value={newFarm.farm_name} onChange={e => setNewFarm({ ...newFarm, farm_name: e.target.value })} placeholder="Enter farm name" />

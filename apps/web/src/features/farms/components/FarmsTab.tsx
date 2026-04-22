@@ -37,6 +37,13 @@ function getFarmLocation(farm: any): string {
   return 'Not specified';
 }
 
+/** Parse GPS / numeric fields from form strings; preserves 0, treats blank as null */
+function toNumOrNull(v: unknown): number | null {
+  if (v === '' || v == null) return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
 /**
  * Pad each column so values align in plain-text tools. Also enforce minimum widths so short
  * headers/values still reserve space when the file is opened in Excel (default column sizing).
@@ -149,6 +156,8 @@ export interface FarmsTabProps {
   initialViewFarmId?: string | null;
   /** Called once the initial-view modal has been triggered, to reset the parent */
   onInitialViewConsumed?: () => void;
+  addFarmError?: string;
+  onAddFarmOpenChange?: (open: boolean) => void;
 }
 
 export const FarmsTab = ({
@@ -158,6 +167,8 @@ export const FarmsTab = ({
   selectedFarmerId, setSelectedFarmerId,
   initialViewFarmId,
   onInitialViewConsumed,
+  addFarmError = '',
+  onAddFarmOpenChange,
 }: FarmsTabProps) => {
   const [page, setPage] = React.useState(1);
   const rowsPerPage = 10;
@@ -330,7 +341,7 @@ export const FarmsTab = ({
   return (
     <div style={{ padding: '16px 36px 32px 36px', background: '#f0ede4', minHeight: '100vh' }}>
       {/* Add Farm Dialog */}
-      <Dialog open={isAddFarmOpen} onOpenChange={(open) => { setIsAddFarmOpen(open); if (!open) setSelectedFarmerId(null); }}>
+      <Dialog open={isAddFarmOpen} onOpenChange={(open) => { setIsAddFarmOpen(open); if (!open) setSelectedFarmerId(null); onAddFarmOpenChange?.(open); }}>
         <DialogContent
           className="flex max-h-[90dvh] w-[calc(100vw-1.25rem)] max-w-[520px] flex-col gap-0 overflow-hidden border bg-background p-0 shadow-lg sm:w-full
             left-[50%] top-[max(0.5rem,env(safe-area-inset-top,0px))] z-50 -translate-x-1/2 translate-y-0
@@ -341,6 +352,11 @@ export const FarmsTab = ({
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto overflow-x-auto overscroll-contain px-6 py-3 [-webkit-overflow-scrolling:touch]">
           <div className="space-y-4 min-w-0">
+            {addFarmError && (
+              <div style={{ background: '#fff5f5', border: '1.5px solid #fca5a5', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: '#b91c1c' }}>
+                {addFarmError}
+              </div>
+            )}
 
             {/* Farm Owner Selector */}
             <div className="space-y-2">
@@ -571,7 +587,25 @@ export const FarmsTab = ({
                           <button
                             title="Edit Farm"
                             style={{ width: 28, height: 28, color: '#4a5a40', background: 'none', border: '1.5px solid #c0d4b0', borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                            onClick={(e) => { e.stopPropagation(); setEditingFarm(farm); }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const locStr = getFarmLocation(farm);
+                              setUpdateError('');
+                              setEditingFarm({
+                                ...farm,
+                                farm_name: farm.farm_name || farm.name || '',
+                                farm_location:
+                                  typeof farm.farm_location === 'string'
+                                    ? farm.farm_location
+                                    : locStr === 'Not specified'
+                                      ? ''
+                                      : locStr,
+                                latitude: farm.latitude != null ? String(farm.latitude) : '',
+                                longitude: farm.longitude != null ? String(farm.longitude) : '',
+                                farm_measurement:
+                                  farm.farm_measurement != null ? String(farm.farm_measurement) : '',
+                              });
+                            }}
                           >
                             <Edit2 size={14} />
                           </button>
@@ -614,51 +648,100 @@ export const FarmsTab = ({
       </div>
 
       {/* Edit Farm Dialog */}
-      <Dialog open={!!editingFarm} onOpenChange={(open) => !open && setEditingFarm(null)}>
+      <Dialog
+        open={!!editingFarm}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditingFarm(null);
+            setUpdateError('');
+          }
+        }}
+      >
         <DialogContent style={{ maxWidth: 520 }}>
           <DialogHeader><DialogTitle>Edit Farm</DialogTitle></DialogHeader>
           {editingFarm && (
             <div className="space-y-4 py-2">
+              {updateError && (
+                <div style={{ background: '#fff5f5', border: '1.5px solid #fca5a5', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: '#b91c1c' }}>
+                  {updateError}
+                </div>
+              )}
               <div className="space-y-2">
                 <Label>Farm Name <span style={{ color: '#e53935', marginLeft: 2 }}>*</span></Label>
-                <Input defaultValue={editingFarm.farm_name || editingFarm.name} onChange={e => setEditingFarm({ ...editingFarm, farm_name: e.target.value })} />
+                <Input
+                  value={editingFarm.farm_name ?? ''}
+                  onChange={e => setEditingFarm({ ...editingFarm, farm_name: e.target.value })}
+                />
               </div>
               <div className="space-y-2">
                 <Label>Farm Location</Label>
-                <Input defaultValue={getFarmLocation(editingFarm)} onChange={e => setEditingFarm({ ...editingFarm, farm_location: e.target.value })} />
+                <Input
+                  value={typeof editingFarm.farm_location === 'string' ? editingFarm.farm_location : ''}
+                  onChange={e => setEditingFarm({ ...editingFarm, farm_location: e.target.value })}
+                />
               </div>
               <div className="grid grid-cols-2 gap-3" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div className="space-y-2">
                   <Label>Latitude (GPS)</Label>
-                  <Input type="number" step="any" defaultValue={editingFarm.latitude} onChange={e => setEditingFarm({ ...editingFarm, latitude: e.target.value })} />
+                  <Input
+                    type="number"
+                    step="any"
+                    value={editingFarm.latitude ?? ''}
+                    onChange={e => setEditingFarm({ ...editingFarm, latitude: e.target.value })}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Longitude (GPS)</Label>
-                  <Input type="number" step="any" defaultValue={editingFarm.longitude} onChange={e => setEditingFarm({ ...editingFarm, longitude: e.target.value })} />
+                  <Input
+                    type="number"
+                    step="any"
+                    value={editingFarm.longitude ?? ''}
+                    onChange={e => setEditingFarm({ ...editingFarm, longitude: e.target.value })}
+                  />
                 </div>
               </div>
               <div className="space-y-2">
                 <Label>Farm Size (Hectares)</Label>
-                <Input type="number" step="any" defaultValue={editingFarm.farm_measurement} onChange={e => setEditingFarm({ ...editingFarm, farm_measurement: e.target.value })} />
+                <Input
+                  type="number"
+                  step="any"
+                  value={editingFarm.farm_measurement ?? ''}
+                  onChange={e => setEditingFarm({ ...editingFarm, farm_measurement: e.target.value })}
+                />
               </div>
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingFarm(null)}>Cancel</Button>
-            <Button disabled={isUpdating || !(editingFarm?.farm_name || editingFarm?.name)} onClick={async () => {
-              setIsUpdating(true);
-              const loc = editingFarm.farm_location !== undefined ? (typeof editingFarm.farm_location === 'object' ? getFarmLocation(editingFarm) : editingFarm.farm_location) : getFarmLocation(editingFarm);
-              await updateFarm(editingFarm.farm_id || editingFarm.id, {
-                farm_name: editingFarm.farm_name || editingFarm.name,
-                farm_location: loc,
-                farm_measurement: Number(editingFarm.farm_measurement) || 0,
-                latitude: editingFarm.latitude ? Number(editingFarm.latitude) : null,
-                longitude: editingFarm.longitude ? Number(editingFarm.longitude) : null,
-              });
-              queryClient.invalidateQueries({ queryKey: ['farms'] });
-              setIsUpdating(false);
-              setEditingFarm(null);
-            }}>
+            <Button variant="outline" onClick={() => { setEditingFarm(null); setUpdateError(''); }}>Cancel</Button>
+            <Button
+              disabled={isUpdating || !(editingFarm?.farm_name || editingFarm?.name)}
+              onClick={async () => {
+                if (!editingFarm) return;
+                setIsUpdating(true);
+                setUpdateError('');
+                try {
+                  const locRaw = editingFarm.farm_location;
+                  const loc =
+                    typeof locRaw === 'string'
+                      ? locRaw
+                      : getFarmLocation(editingFarm);
+                  await updateFarm(editingFarm.farm_id || editingFarm.id, {
+                    farm_name: editingFarm.farm_name || editingFarm.name,
+                    farm_location: loc,
+                    farm_measurement: Number(editingFarm.farm_measurement) || 0,
+                    latitude: toNumOrNull(editingFarm.latitude),
+                    longitude: toNumOrNull(editingFarm.longitude),
+                  });
+                  await queryClient.invalidateQueries({ queryKey: ['farms'] });
+                  setEditingFarm(null);
+                } catch (err: unknown) {
+                  const message = err instanceof Error ? err.message : 'Failed to update farm.';
+                  setUpdateError(message);
+                } finally {
+                  setIsUpdating(false);
+                }
+              }}
+            >
               {isUpdating ? 'Saving...' : 'Save Changes'}
             </Button>
           </DialogFooter>

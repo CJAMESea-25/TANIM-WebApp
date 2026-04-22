@@ -973,7 +973,6 @@ export const FarmsTab = ({
                                 <th style={{ padding: '8px 10px', fontWeight: 700, whiteSpace: 'nowrap' }}>Crop</th>
                                 <th style={{ padding: '8px 10px', fontWeight: 700, whiteSpace: 'nowrap' }}>Status</th>
                                 <th style={{ padding: '8px 10px', fontWeight: 700, whiteSpace: 'nowrap' }}>End date</th>
-                                <th style={{ padding: '8px 10px', fontWeight: 700, whiteSpace: 'nowrap' }}>Soil date</th>
                                 <th style={{ padding: '8px 10px', fontWeight: 700, whiteSpace: 'nowrap' }} title="Nitrogen">N</th>
                                 <th style={{ padding: '8px 10px', fontWeight: 700, whiteSpace: 'nowrap' }} title="Phosphorus">P</th>
                                 <th style={{ padding: '8px 10px', fontWeight: 700, whiteSpace: 'nowrap' }} title="Potassium">K</th>
@@ -1006,7 +1005,7 @@ export const FarmsTab = ({
                                     <td style={{ padding: '8px 10px', color: '#2e3a28', whiteSpace: 'nowrap' }}>
                                       {activeRow ? '—' : fmtSessionDate(ended)}
                                     </td>
-                                    <td style={{ padding: '8px 10px', color: '#6a7a60', whiteSpace: 'nowrap' }}>{fmtSessionDate(soilDate)}</td>
+
                                     <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>{s?.nitrogen ?? '—'}</td>
                                     <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>{s?.phosphorus ?? '—'}</td>
                                     <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>{s?.potassium ?? '—'}</td>

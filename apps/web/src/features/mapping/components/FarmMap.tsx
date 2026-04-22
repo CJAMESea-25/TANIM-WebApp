@@ -3,7 +3,13 @@ import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { User, MapPin, Tractor, Droplets, Thermometer, Wind, Leaf, Activity } from 'lucide-react';
+import { User, MapPin, Tractor, Droplets, Thermometer, Leaf, Activity } from 'lucide-react';
+import {
+  fetchFarmingSessionsForFarm,
+  sessionDisplayStartIso,
+  formatCalendarDateForDisplay,
+  type FarmingSessionRow,
+} from '@/features/farms/services/farmingSessionService';
 
 // Fix Leaflet default icon paths broken by Vite bundler
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -103,6 +109,21 @@ export interface FarmMapProps {
 export const FarmMap: React.FC<FarmMapProps> = ({ farms = [], farmers = [], soilTests = [] }) => {
   const [selectedFarm, setSelectedFarm] = useState<FarmRecord | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [activeSession, setActiveSession] = useState<FarmingSessionRow | null>(null);
+
+  // Fetch the active farming session whenever a farm is selected
+  useEffect(() => {
+    const farmId = selectedFarm?.farm_id || selectedFarm?.id;
+    if (!farmId) { setActiveSession(null); return; }
+    let cancelled = false;
+    fetchFarmingSessionsForFarm(farmId)
+      .then(({ active, history }) => {
+        if (cancelled) return;
+        setActiveSession(active ?? (history.length ? history[0] : null));
+      })
+      .catch(() => { if (!cancelled) setActiveSession(null); });
+    return () => { cancelled = true; };
+  }, [selectedFarm]);
 
   // Separate farms with GPS from those without
   const farmsWithCoords  = farms.filter(f => f.latitude != null && f.longitude != null && f.latitude !== 0 && f.longitude !== 0);
@@ -136,7 +157,6 @@ export const FarmMap: React.FC<FarmMapProps> = ({ farms = [], farmers = [], soil
         className="relative order-2 w-full flex-1 overflow-hidden rounded-2xl border-[1.5px] border-[#c4d8b0] shadow-[0_4px_24px_rgba(58,90,64,0.1)] lg:order-1 lg:h-full"
         style={{
           minWidth: 0,
-          /* Default heights for smaller screens; on lg screens, Tailwind handles h-full. Vertical resize allowed to give user control. */
           minHeight: '350px',
           height: 'clamp(400px, 60vh, 800px)',
           resize: 'vertical',
@@ -158,9 +178,9 @@ export const FarmMap: React.FC<FarmMapProps> = ({ farms = [], farmers = [], soil
           />
           {markers.length > 0 && <FitBounds positions={positions} />}
           {markers.map((farm) => (
-            <Marker 
-              key={farm.id} 
-              position={farm.pos} 
+            <Marker
+              key={farm.id}
+              position={farm.pos}
               icon={farmIcon}
               eventHandlers={{
                 click: () => {
@@ -340,7 +360,7 @@ export const FarmMap: React.FC<FarmMapProps> = ({ farms = [], farmers = [], soil
                 </div>
 
                 <div style={{ padding: '28px 32px', background: '#fcfbef', display: 'flex', flexDirection: 'column', gap: 24 }}>
-                  
+
                   {/* Farmer Details */}
                   <div>
                     <h3 style={{ fontSize: 13, fontWeight: 700, color: '#3a5a40', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -375,8 +395,8 @@ export const FarmMap: React.FC<FarmMapProps> = ({ farms = [], farmers = [], soil
                       <div style={{ gridColumn: '1 / -1' }}>
                         <div style={{ fontSize: 11, color: '#8a9880', marginBottom: 2 }}>GPS Coordinates</div>
                         <div style={{ fontSize: 13, color: '#4a5a40', fontFamily: 'monospace', background: '#f5f0e8', padding: '6px 10px', borderRadius: 6, display: 'inline-block' }}>
-                          {selectedFarm.latitude && selectedFarm.longitude 
-                            ? `${selectedFarm.latitude.toFixed(6)}, ${selectedFarm.longitude.toFixed(6)}` 
+                          {selectedFarm.latitude && selectedFarm.longitude
+                            ? `${selectedFarm.latitude.toFixed(6)}, ${selectedFarm.longitude.toFixed(6)}`
                             : 'Not mapped'}
                         </div>
                       </div>
@@ -395,7 +415,7 @@ export const FarmMap: React.FC<FarmMapProps> = ({ farms = [], farmers = [], soil
                             {selectedFarm.soilType ? `${selectedFarm.soilType.charAt(0).toUpperCase()}${selectedFarm.soilType.slice(1)} Soil` : 'Unknown Soil Type'}
                           </span>
                           <span style={{ fontSize: 11, color: '#8a9880' }}>
-                            Last tested: {new Date(soilTest.created_at).toLocaleDateString()}
+                            Crop cycle start: {activeSession ? formatCalendarDateForDisplay(sessionDisplayStartIso(activeSession)) : '—'}
                           </span>
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
@@ -426,10 +446,10 @@ export const FarmMap: React.FC<FarmMapProps> = ({ farms = [], farmers = [], soil
                             </div>
                           </div>
                           <div style={{ background: '#fdfbfa', border: '1px solid #f0ede4', borderRadius: 10, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <Wind size={16} color="#8a9880" />
+                            <Thermometer size={16} color="#8a9880" />
                             <div>
-                              <div style={{ fontSize: 10, color: '#8a9880' }}>Hum/Temp</div>
-                              <div style={{ fontSize: 14, fontWeight: 600, color: '#2e3a28' }}>{soilTest.humidity || 0}% / {soilTest.temperature || 0}°</div>
+                              <div style={{ fontSize: 10, color: '#8a9880' }}>Temperature</div>
+                              <div style={{ fontSize: 14, fontWeight: 600, color: '#2e3a28' }}>{soilTest.temperature || 0}°C</div>
                             </div>
                           </div>
                         </div>

@@ -13,7 +13,6 @@ import {
   soilScalarsFromSnapshot,
   normalizeFarmingSessionRow,
   sessionDisplayStartIso,
-  sessionCropLabel,
   formatCalendarDateForDisplay,
 } from '@/features/farms/services/farmingSessionService';
 import { AppLayout } from '@/shared/components/layout/AppLayout';
@@ -38,18 +37,32 @@ import {
   CategoryScale, LinearScale, LineElement, PointElement,
   Title, Tooltip, Legend, BarElement, ArcElement,
 } from 'chart.js';
-import { Line, Bar, Doughnut } from 'react-chartjs-2';
+import { Line } from 'react-chartjs-2';
 import {
   Users, Tractor, Download, Plus, Thermometer, Droplets,
-  Database, AlertCircle, Calendar, MapPin, ShieldCheck,
+  Database, AlertCircle, MapPin, ShieldCheck,
   UserCircle, TrendingUp, BarChart3, Loader2
 } from 'lucide-react';
 
 ChartJS.register(CategoryScale, LinearScale, LineElement, PointElement, BarElement, ArcElement, Title, Tooltip, Legend);
 
+/** Hidden from Recent Activity + soil chart (case-insensitive match on farm name). */
+const DASHBOARD_EXCLUDED_FARM_NAMES = new Set(['kuya kj farm']);
+
+function farmNameExcludedFromDashboard(farm: any): boolean {
+  const n = (farm?.farm_name || farm?.name || '').trim().toLowerCase();
+  return DASHBOARD_EXCLUDED_FARM_NAMES.has(n);
+}
+
+function farmIdExcludedFromDashboard(farmId: string | undefined | null, farmsList: any[]): boolean {
+  if (farmId == null || farmId === '') return false;
+  const farm = farmsList.find((f: any) => String(f.farm_id || f.id) === String(farmId));
+  return farm ? farmNameExcludedFromDashboard(farm) : false;
+}
+
 // ─── Dashboard overview page ───────────────────────────────────────────────
 const DashboardPage = ({
-  farms, farmers, dbSoilTests, dbSystemActivity, liveWeather, onAddFarmer, latestSessionCycle,
+  farms, farmers, dbSoilTests, dbSystemActivity, liveWeather, onAddFarmer,
 }: {
   farms: any[];
   farmers: any[];
@@ -57,17 +70,58 @@ const DashboardPage = ({
   dbSystemActivity: any[];
   liveWeather: any[];
   onAddFarmer: () => void;
-  latestSessionCycle: { farmName: string; crop: string; cycleDate: string | null; cycleDateLabel: string; isActive: boolean } | null;
 }) => {
   const [isExportingSessions, setIsExportingSessions] = React.useState(false);
-  // Exact recent chronological tests
+
+  const handleExportCSV = async () => {
+    try {
+      setIsExportingSessions(true);
+      const rows = await fetchAllFarmingSessionsRaw();
+      if (!rows.length) {
+        alert('No farming session data available to export.');
+        return;
+      }
+      const csvContent = farmingSessionsRowsToCsv(rows);
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute(
+        'download',
+        `farming_sessions_${new Date().toISOString().split('T')[0]}.csv`,
+      );
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error(e);
+      alert('Could not export farming sessions. Please try again.');
+    } finally {
+      setIsExportingSessions(false);
+    }
+  };
+
+  /** Chart: order & x-axis labels use cycle start (`cycle_start_at`) when set, else soil received / session `created_at`. */
+  const sortTimeForChart = (a: any, b: any) => {
+    const parse = (t: any) => {
+      const s = t.cycle_start_at || t.created_at;
+      if (!s) return 0;
+      const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s));
+      if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).getTime();
+      return new Date(s).getTime();
+    };
+    return parse(a) - parse(b);
+  };
+
   const recentTests = [...dbSoilTests]
-    .sort((a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime())
+    .filter((t) => !farmIdExcludedFromDashboard(t.farm_id, farms))
+    .sort(sortTimeForChart)
     .slice(-15);
 
-  const labels = recentTests.map(t => {
-    const d = t.created_at ? new Date(t.created_at) : new Date();
-    return `${d.toLocaleString('default', { month: 'short' })} ${d.getDate()}`;
+  const labels = recentTests.map((t) => {
+    const s = t.cycle_start_at || t.created_at;
+    return s ? formatCalendarDateForDisplay(s) : '—';
   });
 
   const soilLineData = {
@@ -108,43 +162,18 @@ const DashboardPage = ({
     },
   };
 
-  const handleExportCSV = async () => {
-    try {
-      setIsExportingSessions(true);
-      const rows = await fetchAllFarmingSessionsRaw();
-      if (!rows.length) {
-        alert('No farming session data available to export.');
-        return;
-      }
-      const csvContent = farmingSessionsRowsToCsv(rows);
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute(
-        'download',
-        `farming_sessions_${new Date().toISOString().split('T')[0]}.csv`,
-      );
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    } catch (e) {
-      console.error(e);
-      alert('Could not export farming sessions. Please try again.');
-    } finally {
-      setIsExportingSessions(false);
-    }
-  };
-
   // ── Recent activity data ──
-  const latestAddedFarm = [...farms].sort(
-    (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
-  )[0];
+  const latestAddedFarm = [...farms]
+    .filter((f) => !farmNameExcludedFromDashboard(f))
+    .sort(
+      (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+    )[0];
 
-  const latestSoilTest = [...dbSoilTests].sort(
-    (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
-  )[0];
+  const latestSoilTest = [...dbSoilTests]
+    .filter((t) => !farmIdExcludedFromDashboard(t.farm_id, farms))
+    .sort(
+      (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+    )[0];
   const latestTestedFarm = latestSoilTest
     ? farms.find((f: any) => f.farm_id === latestSoilTest.farm_id || f.id === latestSoilTest.farm_id)
     : null;
@@ -152,9 +181,6 @@ const DashboardPage = ({
   const latestAddedFarmer = [...farmers].sort(
     (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
   )[0];
-
-  const fmtDate = (iso?: string | null) =>
-    iso ? new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
 
   return (
     <div className="min-h-0 bg-[#f0ede4] px-4 py-4 sm:px-6 sm:py-5 lg:px-9 lg:pb-8">
@@ -189,7 +215,7 @@ const DashboardPage = ({
         </div>
       </div>
 
-      {/* ── Top summary + chart grid ── */}
+      {/* ── Top summary + soil chart (x-axis = cycle start date when available) ── */}
       <div className="mb-5 grid grid-cols-1 gap-[18px] md:grid-cols-2 xl:grid-cols-[1fr_1fr_minmax(0,2.4fr)]">
 
         {/* Total Farmers */}
@@ -216,10 +242,10 @@ const DashboardPage = ({
           <div className="text-[clamp(2rem,8vw,3.25rem)] font-extrabold leading-none text-[#1e2a1e]">{farms.length || 0}</div>
         </div>
 
-        {/* Soil Health Trends */}
+        {/* Soil Health Trends — points ordered by cycle start (fallback: soil received / created) */}
         <div className="min-w-0 md:col-span-2 xl:col-span-1" style={{ background: '#fff', borderRadius: 18, padding: '24px 28px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
           <div style={{ fontSize: 16, fontWeight: 700, color: '#1e2a1e', lineHeight: 1.3 }}>Soil Health<br />Trends</div>
-          <div style={{ fontSize: 11, color: '#9aaa8a', marginTop: 4, marginBottom: 8 }}>Metric distribution over time (NPK Levels)</div>
+          <div style={{ fontSize: 11, color: '#9aaa8a', marginTop: 4, marginBottom: 8 }}>By cycle start date (NPK and soil metrics)</div>
           <div className="relative h-36 w-full sm:h-40">
             <Line data={soilLineData} options={soilChartOptions} />
           </div>
@@ -231,7 +257,7 @@ const DashboardPage = ({
         <div style={{ fontSize: 13, fontWeight: 700, color: '#3a5a40', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 14 }}>
           Recent Activity
         </div>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
 
           {/* Latest Added Farm */}
           <div style={{ background: '#fff', borderRadius: 16, padding: '20px 22px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -259,10 +285,6 @@ const DashboardPage = ({
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
                     <span style={{ color: '#8a9880' }}>Size</span>
                     <span style={{ fontWeight: 600, color: '#2e3a28' }}>{latestAddedFarm.farm_measurement ? `${latestAddedFarm.farm_measurement} ha` : '—'}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                    <span style={{ color: '#8a9880' }}>Added</span>
-                    <span style={{ fontWeight: 600, color: '#3a5a40' }}>{fmtDate(latestAddedFarm.created_at)}</span>
                   </div>
                 </div>
               </>
@@ -308,51 +330,8 @@ const DashboardPage = ({
                     <span style={{ color: '#8a9880' }}>Salinity (EC)</span>
                     <span style={{ fontWeight: 600, color: '#2e3a28' }}>{latestSoilTest.salinity ?? '—'}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                    <span style={{ color: '#8a9880' }}>Tested</span>
-                    <span style={{ fontWeight: 600, color: '#b67c2a' }}>{fmtDate(latestSoilTest.created_at)}</span>
-                  </div>
                 </div>
               </>
-            )}
-          </div>
-
-          {/* Latest crop cycle (from farming_session — cycle_start_date / session start) */}
-          <div style={{ background: '#fff', borderRadius: 16, padding: '20px 22px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 10, background: '#eef7ee', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <Calendar size={17} color="#2d6a4f" />
-              </div>
-              <div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: '#8a9880', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Crop cycle</div>
-                <div style={{ fontSize: 15, fontWeight: 800, color: '#1e2a1e', marginTop: 1, lineHeight: 1.2 }}>
-                  {latestSessionCycle ? latestSessionCycle.farmName : 'No sessions yet'}
-                </div>
-              </div>
-            </div>
-            {latestSessionCycle && (
-              <>
-                <div style={{ borderTop: '1px solid #f0ede4' }} />
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                    <span style={{ color: '#8a9880' }}>Status</span>
-                    <span style={{ fontWeight: 600, color: latestSessionCycle.isActive ? '#2d6a4f' : '#6a7a60' }}>
-                      {latestSessionCycle.isActive ? 'Active' : 'Ended'}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                    <span style={{ color: '#8a9880' }}>Crop</span>
-                    <span style={{ fontWeight: 600, color: '#2e3a28', textAlign: 'right', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{latestSessionCycle.crop}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                    <span style={{ color: '#8a9880' }}>Cycle start</span>
-                    <span style={{ fontWeight: 600, color: '#3a5a40' }}>{latestSessionCycle.cycleDateLabel}</span>
-                  </div>
-                </div>
-              </>
-            )}
-            {!latestSessionCycle && (
-              <div style={{ fontSize: 12, color: '#8a9880', lineHeight: 1.5 }}>Farming sessions from the app will show cycle dates here.</div>
             )}
           </div>
 
@@ -382,10 +361,6 @@ const DashboardPage = ({
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
                     <span style={{ color: '#8a9880' }}>Phone</span>
                     <span style={{ fontWeight: 600, color: '#2e3a28' }}>{latestAddedFarmer.phone_number || '—'}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                    <span style={{ color: '#8a9880' }}>Joined</span>
-                    <span style={{ fontWeight: 600, color: '#4a5ab0' }}>{fmtDate(latestAddedFarmer.created_at)}</span>
                   </div>
                 </div>
               </>
@@ -465,10 +440,13 @@ export const AdminDashboard = () => {
       const classification = typeof rawSnapshot === 'object' && rawSnapshot !== null
         ? (rawSnapshot as any).npk_classification || (rawSnapshot as any).classification
         : undefined;
+      const norm = normalizeFarmingSessionRow(fs as Record<string, unknown>);
       return {
         id: fs.id || fs.farming_session_id,
         farm_id: fs.farm_id,
         created_at: snap.received_at || fs.created_at,
+        /** For charts: prefer `cycle_start_date` from row, else session/created — same as farm detail. */
+        cycle_start_at: sessionDisplayStartIso(norm) ?? null,
         ph: snap.ph,
         nitrogen: snap.nitrogen,
         phosphorus: snap.phosphorus,
@@ -490,33 +468,6 @@ export const AdminDashboard = () => {
       console.warn('[dbSoilTests] rawSessions has data but dbSoilTests is EMPTY — soil_snapshot key names likely do not match!');
     }
   }, [dbSoilTests, rawSessions]);
-
-  /**
-   * Prefer active sessions; unya una ang dunay `cycle_start_date` (match admin DB edit), unya `created_at`.
-   * `cycleDateLabel` gamiton ang Y-M-D calendar parse — dili `new Date(iso)` lang aron dili mahimong lain ang adlaw.
-   */
-  const latestSessionCycle = React.useMemo(() => {
-    const rows = rawSessions as Record<string, unknown>[] | undefined;
-    if (!rows?.length) return null;
-    const list = rows.map((r) => normalizeFarmingSessionRow(r));
-    const active = list.filter((r) => r.ended_at == null);
-    const pool = active.length > 0 ? active : list;
-    pool.sort((a, b) => {
-      const sc = (x: (typeof list)[0]) => (x.cycle_start_date ? 1 : 0);
-      if (sc(b) !== sc(a)) return sc(b) - sc(a);
-      return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
-    });
-    const row = pool[0];
-    if (!row) return null;
-    const farm = (farms as any[]).find((f: any) => String(f.farm_id || f.id) === String(row.farm_id));
-    return {
-      farmName: farm?.farm_name || farm?.name || 'Unnamed farm',
-      crop: sessionCropLabel(row),
-      cycleDate: sessionDisplayStartIso(row) ?? null,
-      cycleDateLabel: formatCalendarDateForDisplay(sessionDisplayStartIso(row) ?? null),
-      isActive: row.ended_at == null,
-    };
-  }, [rawSessions, farms]);
 
   const { data: dbSystemActivity = [] } = useSystemActivity() as any;
   const { profile, logout } = useGlobalAuth();
@@ -742,7 +693,6 @@ export const AdminDashboard = () => {
             dbSystemActivity={dbSystemActivity}
             liveWeather={liveWeather}
             onAddFarmer={openAddFarmer}
-            latestSessionCycle={latestSessionCycle}
           />
         );
 

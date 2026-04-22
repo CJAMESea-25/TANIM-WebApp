@@ -11,7 +11,7 @@ import {
 // ── The hardcoded super admin username ─────────────────────────────────────
 // Only an account with this username can add / edit / delete other admins.
 // Change this to match whatever username you created in Supabase.
-const SUPER_ADMIN_USERNAME = 'superadmin';
+const SUPER_ADMIN_USERNAME = 'superadmin@tanim.agri';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 function fmtDate(iso: string) {

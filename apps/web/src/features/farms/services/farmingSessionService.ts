@@ -65,6 +65,32 @@ export function sessionCropLabel(row: FarmingSessionRow): string {
   return typeof c === 'string' && c.trim() ? c.trim() : '—';
 }
 
+/** Prefer DB `cycle_start_date` (editable in admin), then session times. */
+export function sessionDisplayStartIso(row: FarmingSessionRow): string | undefined {
+  if (row.cycle_start_date) return row.cycle_start_date;
+  return row.started_at || row.created_at;
+}
+
+/**
+ * Show a date string without UTC/local shifting bugs on `YYYY-MM-DD` (Postgres `date` / cycle fields).
+ * Parses the leading Y-M-D as a **calendar** day in the local browser, not midnight UTC.
+ */
+export function formatCalendarDateForDisplay(value: string | null | undefined): string {
+  if (value == null || String(value).trim() === '') return '—';
+  const s = String(value).trim();
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  if (m) {
+    const y = Number(m[1]);
+    const mo = Number(m[2]) - 1;
+    const d = Number(m[3]);
+    if (!Number.isFinite(y) || !Number.isFinite(mo) || !Number.isFinite(d)) return '—';
+    return new Date(y, mo, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+  const t = new Date(s);
+  if (Number.isNaN(t.getTime())) return '—';
+  return t.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
 export function soilScalarsFromSnapshot(snap: unknown): {
   nitrogen: number | null;
   phosphorus: number | null;

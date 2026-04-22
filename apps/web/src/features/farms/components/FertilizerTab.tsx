@@ -52,6 +52,8 @@ interface FertilizerRecommendation {
 interface FarmEntry {
   farm: any;
   rec: FertilizerRecommendation | null;
+  /** From `farming_session.cycle_start_date` (PostgREST row); wins over JSON `farming_timeline.cycle_start_date`. */
+  cycleFromDb?: string | null;
 }
 
 export interface FertilizerTabProps {
@@ -256,6 +258,12 @@ const Section = ({ title, icon, children }: { title: string; icon: React.ReactNo
   </div>
 );
 
+const detailCycleStart = (entry: FarmEntry, rec: FertilizerRecommendation): string | undefined => {
+  const db = entry.cycleFromDb;
+  if (db != null && String(db).trim() !== '') return String(db).trim();
+  return rec.farming_timeline?.cycle_start_date;
+};
+
 const DetailPanel = ({ entry }: { entry: FarmEntry }) => {
   const { farm, rec } = entry;
   const name = farm.farm_name || farm.name || 'Unnamed Farm';
@@ -357,7 +365,7 @@ const DetailPanel = ({ entry }: { entry: FarmEntry }) => {
           <TimelineBar
             phases={rec.farming_timeline.phases}
             totalDays={rec.farming_timeline.total_days}
-            cycleStart={rec.farming_timeline.cycle_start_date}
+            cycleStart={detailCycleStart(entry, rec)}
           />
           {rec.farming_timeline.planting_window_note && (
             <div style={{ fontSize: 11, color: '#8a9880', marginTop: 14, padding: '10px 14px', background: '#fefce8', borderRadius: 8, border: '1px solid #fde68a', lineHeight: 1.5, fontStyle: 'italic' }}>
@@ -412,21 +420,32 @@ export const FertilizerTab = ({ farms, onAddFarmer }: FertilizerTabProps) => {
     return () => { cancelled = true; };
   }, []);
 
-  // ── Build farm→rec map (latest session with rec per farm) ──
+  // ── Build farm → latest session w/ rec + row `cycle_start_date` (same pass, newest session first) ──
   const recByFarmId = React.useMemo(() => {
-    const map = new Map<string, FertilizerRecommendation>();
+    const map = new Map<string, { rec: FertilizerRecommendation; cycleFromDb: string | null }>();
     for (const raw of sessions) {
       const row = normalizeFarmingSessionRow(raw as Record<string, unknown>);
       if (!row.farm_id || map.has(row.farm_id)) continue;
       const rec = row.fertilizer_recommendation as FertilizerRecommendation;
-      if (rec && typeof rec === 'object' && rec.crop) map.set(row.farm_id, rec);
+      if (rec && typeof rec === 'object' && rec.crop) {
+        map.set(row.farm_id, { rec, cycleFromDb: row.cycle_start_date ?? null });
+      }
     }
     return map;
   }, [sessions]);
 
   // ── Build entries ──
   const allEntries: FarmEntry[] = React.useMemo(
-    () => farms.map(f => ({ farm: f, rec: recByFarmId.get(f.farm_id || f.id) ?? null })),
+    () =>
+      farms.map((f) => {
+        const id = f.farm_id || f.id;
+        const got = recByFarmId.get(id);
+        return {
+          farm: f,
+          rec: got?.rec ?? null,
+          cycleFromDb: got?.cycleFromDb,
+        };
+      }),
     [farms, recByFarmId]
   );
 

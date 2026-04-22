@@ -11,6 +11,8 @@ import {
   fetchFarmingSessionsForFarm,
   soilScalarsFromSnapshot,
   sessionCropLabel,
+  sessionDisplayStartIso,
+  formatCalendarDateForDisplay,
   type FarmingSessionRow,
 } from '@/features/farms/services/farmingSessionService';
 import { useQueryClient } from '@tanstack/react-query';
@@ -90,12 +92,12 @@ function buildCropHistoryCsv(
   farmName: string,
   farmerName: string,
   sessions: FarmingSessionRow[],
-  fmtShort: (iso?: string | null) => string,
+  fmtDate: (iso?: string | null) => string,
 ): string {
   const headers = [
     'Farm name',
     'Farmer name',
-    'Started',
+    'Cycle start',
     'Crop',
     'Status',
     'End date',
@@ -111,18 +113,18 @@ function buildCropHistoryCsv(
   const rows: string[][] = [headers];
   for (const row of sessions) {
     const s = soilScalarsFromSnapshot(row.soil_snapshot);
-    const started = row.started_at || row.created_at;
+    const started = sessionDisplayStartIso(row);
     const ended = row.ended_at;
     const activeRow = !ended;
     const soilDate = s?.received_at || started;
     rows.push([
       farmName,
       farmerName,
-      fmtShort(started),
+      fmtDate(started),
       sessionCropLabel(row),
       activeRow ? 'Active' : 'Ended',
-      activeRow ? '—' : fmtShort(ended),
-      fmtShort(soilDate),
+      activeRow ? '—' : fmtDate(ended),
+      fmtDate(soilDate),
       s?.nitrogen != null ? String(s.nitrogen) : '—',
       s?.phosphorus != null ? String(s.phosphorus) : '—',
       s?.potassium != null ? String(s.potassium) : '—',
@@ -393,16 +395,6 @@ export const FarmsTab = ({
             <div className="space-y-2">
               <Label>Farm Location</Label>
               <Input value={newFarm.farm_location ?? ''} onChange={e => setNewFarm({ ...newFarm, farm_location: e.target.value })} placeholder="e.g. Cagayan de Oro, Region X" />
-            </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Latitude (GPS) 🗺</Label>
-                <Input type="number" step="any" value={newFarm.latitude ?? ''} onChange={e => setNewFarm({ ...newFarm, latitude: e.target.value })} placeholder="e.g. 8.4870" />
-              </div>
-              <div className="space-y-2">
-                <Label>Longitude (GPS) 🗺</Label>
-                <Input type="number" step="any" value={newFarm.longitude ?? ''} onChange={e => setNewFarm({ ...newFarm, longitude: e.target.value })} placeholder="e.g. 124.6470" />
-              </div>
             </div>
             <div className="space-y-2">
               <Label>Farm Size (Hectares)</Label>
@@ -798,8 +790,7 @@ export const FarmsTab = ({
           {viewingFarm && (() => {
             const farmer = farmers.find((f: any) => f.farmer_id === viewingFarm.farmer_id || f.id === viewingFarm.farmer_id);
             const { active: fsActive, history: fsHistory, loading: fsLoading, error: fsError } = farmSessionState;
-            const fmtShort = (iso?: string | null) =>
-              iso ? new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+            const fmtSessionDate = formatCalendarDateForDisplay;
             const cropFromSession = fsActive
               ? sessionCropLabel(fsActive)
               : fsHistory.length
@@ -919,7 +910,7 @@ export const FarmsTab = ({
                           size="sm"
                           className="shrink-0 border-[#d0d4c8] text-[#3a5a40] hover:bg-[#f0ede4]"
                           onClick={() => {
-                            const csv = buildCropHistoryCsv(farmDisplayName, farmerName, fsHistory, fmtShort);
+                            const csv = buildCropHistoryCsv(farmDisplayName, farmerName, fsHistory, fmtSessionDate);
                             const safeFarm = farmDisplayName.replace(/[^\w\-]+/g, '_').replace(/_+/g, '_').slice(0, 60) || 'farm';
                             const stamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
                             downloadTextFile(
@@ -978,7 +969,7 @@ export const FarmsTab = ({
                               <tr style={{ background: '#f5f2ea', color: '#4a5a40', textAlign: 'left' }}>
                                 <th style={{ padding: '8px 10px', fontWeight: 700, whiteSpace: 'nowrap' }}>Farm name</th>
                                 <th style={{ padding: '8px 10px', fontWeight: 700, whiteSpace: 'nowrap' }}>Farmer name</th>
-                                <th style={{ padding: '8px 10px', fontWeight: 700, whiteSpace: 'nowrap' }}>Started</th>
+                                <th style={{ padding: '8px 10px', fontWeight: 700, whiteSpace: 'nowrap' }}>Cycle start</th>
                                 <th style={{ padding: '8px 10px', fontWeight: 700, whiteSpace: 'nowrap' }}>Crop</th>
                                 <th style={{ padding: '8px 10px', fontWeight: 700, whiteSpace: 'nowrap' }}>Status</th>
                                 <th style={{ padding: '8px 10px', fontWeight: 700, whiteSpace: 'nowrap' }}>End date</th>
@@ -995,7 +986,7 @@ export const FarmsTab = ({
                             <tbody>
                               {fsHistory.map((row, idx) => {
                                 const s = soilScalarsFromSnapshot(row.soil_snapshot);
-                                const started = row.started_at || row.created_at;
+                                const started = sessionDisplayStartIso(row);
                                 const ended = row.ended_at;
                                 const activeRow = !ended;
                                 const soilDate = s?.received_at || started;
@@ -1003,7 +994,7 @@ export const FarmsTab = ({
                                   <tr key={`crop-history-${started || idx}-${idx}`} style={{ borderTop: '1px solid #eee' }}>
                                     <td style={{ padding: '8px 10px', color: '#2e3a28', whiteSpace: 'nowrap', fontWeight: 600 }}>{farmDisplayName}</td>
                                     <td style={{ padding: '8px 10px', color: '#2e3a28', whiteSpace: 'nowrap' }}>{farmerName}</td>
-                                    <td style={{ padding: '8px 10px', color: '#2e3a28', whiteSpace: 'nowrap' }}>{fmtShort(started)}</td>
+                                    <td style={{ padding: '8px 10px', color: '#2e3a28', whiteSpace: 'nowrap' }}>{fmtSessionDate(started)}</td>
                                     <td style={{ padding: '8px 10px', fontWeight: 600, color: '#2e3a28', whiteSpace: 'nowrap' }}>{sessionCropLabel(row)}</td>
                                     <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>
                                       {activeRow ? (
@@ -1013,9 +1004,9 @@ export const FarmsTab = ({
                                       )}
                                     </td>
                                     <td style={{ padding: '8px 10px', color: '#2e3a28', whiteSpace: 'nowrap' }}>
-                                      {activeRow ? '—' : fmtShort(ended)}
+                                      {activeRow ? '—' : fmtSessionDate(ended)}
                                     </td>
-                                    <td style={{ padding: '8px 10px', color: '#6a7a60', whiteSpace: 'nowrap' }}>{fmtShort(soilDate)}</td>
+                                    <td style={{ padding: '8px 10px', color: '#6a7a60', whiteSpace: 'nowrap' }}>{fmtSessionDate(soilDate)}</td>
                                     <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>{s?.nitrogen ?? '—'}</td>
                                     <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>{s?.phosphorus ?? '—'}</td>
                                     <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>{s?.potassium ?? '—'}</td>

@@ -11,6 +11,10 @@ import {
   fetchAllFarmingSessionsRaw,
   farmingSessionsRowsToCsv,
   soilScalarsFromSnapshot,
+  normalizeFarmingSessionRow,
+  sessionDisplayStartIso,
+  sessionCropLabel,
+  formatCalendarDateForDisplay,
 } from '@/features/farms/services/farmingSessionService';
 import { AppLayout } from '@/shared/components/layout/AppLayout';
 import { SidebarPage } from '@/shared/components/layout/Sidebar';
@@ -45,9 +49,15 @@ ChartJS.register(CategoryScale, LinearScale, LineElement, PointElement, BarEleme
 
 // ─── Dashboard overview page ───────────────────────────────────────────────
 const DashboardPage = ({
-  farms, farmers, dbSoilTests, dbSystemActivity, liveWeather, onAddFarmer,
+  farms, farmers, dbSoilTests, dbSystemActivity, liveWeather, onAddFarmer, latestSessionCycle,
 }: {
-  farms: any[]; farmers: any[]; dbSoilTests: any[]; dbSystemActivity: any[]; liveWeather: any[]; onAddFarmer: () => void;
+  farms: any[];
+  farmers: any[];
+  dbSoilTests: any[];
+  dbSystemActivity: any[];
+  liveWeather: any[];
+  onAddFarmer: () => void;
+  latestSessionCycle: { farmName: string; crop: string; cycleDate: string | null; cycleDateLabel: string; isActive: boolean } | null;
 }) => {
   const [isExportingSessions, setIsExportingSessions] = React.useState(false);
   // Exact recent chronological tests
@@ -221,7 +231,7 @@ const DashboardPage = ({
         <div style={{ fontSize: 13, fontWeight: 700, color: '#3a5a40', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 14 }}>
           Recent Activity
         </div>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
 
           {/* Latest Added Farm */}
           <div style={{ background: '#fff', borderRadius: 16, padding: '20px 22px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -304,6 +314,45 @@ const DashboardPage = ({
                   </div>
                 </div>
               </>
+            )}
+          </div>
+
+          {/* Latest crop cycle (from farming_session — cycle_start_date / session start) */}
+          <div style={{ background: '#fff', borderRadius: 16, padding: '20px 22px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: '#eef7ee', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Calendar size={17} color="#2d6a4f" />
+              </div>
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#8a9880', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Crop cycle</div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: '#1e2a1e', marginTop: 1, lineHeight: 1.2 }}>
+                  {latestSessionCycle ? latestSessionCycle.farmName : 'No sessions yet'}
+                </div>
+              </div>
+            </div>
+            {latestSessionCycle && (
+              <>
+                <div style={{ borderTop: '1px solid #f0ede4' }} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                    <span style={{ color: '#8a9880' }}>Status</span>
+                    <span style={{ fontWeight: 600, color: latestSessionCycle.isActive ? '#2d6a4f' : '#6a7a60' }}>
+                      {latestSessionCycle.isActive ? 'Active' : 'Ended'}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                    <span style={{ color: '#8a9880' }}>Crop</span>
+                    <span style={{ fontWeight: 600, color: '#2e3a28', textAlign: 'right', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{latestSessionCycle.crop}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                    <span style={{ color: '#8a9880' }}>Cycle start</span>
+                    <span style={{ fontWeight: 600, color: '#3a5a40' }}>{latestSessionCycle.cycleDateLabel}</span>
+                  </div>
+                </div>
+              </>
+            )}
+            {!latestSessionCycle && (
+              <div style={{ fontSize: 12, color: '#8a9880', lineHeight: 1.5 }}>Farming sessions from the app will show cycle dates here.</div>
             )}
           </div>
 
@@ -442,6 +491,33 @@ export const AdminDashboard = () => {
     }
   }, [dbSoilTests, rawSessions]);
 
+  /**
+   * Prefer active sessions; unya una ang dunay `cycle_start_date` (match admin DB edit), unya `created_at`.
+   * `cycleDateLabel` gamiton ang Y-M-D calendar parse — dili `new Date(iso)` lang aron dili mahimong lain ang adlaw.
+   */
+  const latestSessionCycle = React.useMemo(() => {
+    const rows = rawSessions as Record<string, unknown>[] | undefined;
+    if (!rows?.length) return null;
+    const list = rows.map((r) => normalizeFarmingSessionRow(r));
+    const active = list.filter((r) => r.ended_at == null);
+    const pool = active.length > 0 ? active : list;
+    pool.sort((a, b) => {
+      const sc = (x: (typeof list)[0]) => (x.cycle_start_date ? 1 : 0);
+      if (sc(b) !== sc(a)) return sc(b) - sc(a);
+      return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+    });
+    const row = pool[0];
+    if (!row) return null;
+    const farm = (farms as any[]).find((f: any) => String(f.farm_id || f.id) === String(row.farm_id));
+    return {
+      farmName: farm?.farm_name || farm?.name || 'Unnamed farm',
+      crop: sessionCropLabel(row),
+      cycleDate: sessionDisplayStartIso(row) ?? null,
+      cycleDateLabel: formatCalendarDateForDisplay(sessionDisplayStartIso(row) ?? null),
+      isActive: row.ended_at == null,
+    };
+  }, [rawSessions, farms]);
+
   const { data: dbSystemActivity = [] } = useSystemActivity() as any;
   const { profile, logout } = useGlobalAuth();
   const queryClient = useQueryClient();
@@ -456,13 +532,13 @@ export const AdminDashboard = () => {
   const [newFarmer, setNewFarmer] = React.useState({
     firstName: '', lastName: '', contactInfo: '', username: '', password: '',
     farm_name: '', farmLocation: '', farm_measurement: '', soilType: 'loam',
-    latitude: '', longitude: '', language: 'en',
+    language: 'en',
   });
   const [isAddingFarmer, setIsAddingFarmer] = React.useState(false);
   const [addFarmerError, setAddFarmerError] = React.useState('');
   const [isAddFarmOpen, setIsAddFarmOpen] = React.useState(false);
   const [selectedFarmerId, setSelectedFarmerId] = React.useState<string | null>(null);
-  const [newFarm, setNewFarm] = React.useState({ farm_name: '', farm_measurement: '', soilType: 'loam', farm_location: '', latitude: '', longitude: '' });
+  const [newFarm, setNewFarm] = React.useState({ farm_name: '', farm_measurement: '', soilType: 'loam', farm_location: '' });
   const [isAddingFarm, setIsAddingFarm] = React.useState(false);
   const [addFarmError, setAddFarmError] = React.useState('');
 
@@ -529,13 +605,13 @@ export const AdminDashboard = () => {
           farm_measurement: Number(newFarmer.farm_measurement) || 0,
           farmer_id: farmerId,
           farm_location: newFarmer.farmLocation || undefined,
-          latitude: newFarmer.latitude ? Number(newFarmer.latitude) : null,
-          longitude: newFarmer.longitude ? Number(newFarmer.longitude) : null,
+          latitude: null,
+          longitude: null,
         });
         queryClient.invalidateQueries({ queryKey: ['farms'] });
       }
       setIsAddFarmerOpen(false);
-      setNewFarmer({ firstName: '', lastName: '', contactInfo: '', username: '', password: '', farm_name: '', farmLocation: '', farm_measurement: '', soilType: 'loam', latitude: '', longitude: '', language: 'en' });
+      setNewFarmer({ firstName: '', lastName: '', contactInfo: '', username: '', password: '', farm_name: '', farmLocation: '', farm_measurement: '', soilType: 'loam', language: 'en' });
       queryClient.invalidateQueries({ queryKey: ['farmers'] });
     } catch (err: unknown) {
       console.error(err);
@@ -561,12 +637,12 @@ export const AdminDashboard = () => {
         farm_measurement: Number(newFarm.farm_measurement) || 0,
         farmer_id: selectedFarmerId,
         farm_location: newFarm.farm_location || undefined,
-        latitude: newFarm.latitude ? Number(newFarm.latitude) : null,
-        longitude: newFarm.longitude ? Number(newFarm.longitude) : null,
+        latitude: null,
+        longitude: null,
       });
       setIsAddFarmOpen(false);
       setSelectedFarmerId(null);
-      setNewFarm({ farm_name: '', farm_measurement: '', soilType: 'loam', farm_location: '', latitude: '', longitude: '' });
+      setNewFarm({ farm_name: '', farm_measurement: '', soilType: 'loam', farm_location: '' });
       queryClient.invalidateQueries({ queryKey: ['farms'] });
     } catch (err: unknown) {
       console.error(err);
@@ -658,7 +734,17 @@ export const AdminDashboard = () => {
     const openAddFarmer = () => setIsAddFarmerOpen(true);
     switch (activePage) {
       case 'dashboard':
-        return <DashboardPage farms={farms} farmers={farmers} dbSoilTests={dbSoilTests} dbSystemActivity={dbSystemActivity} liveWeather={liveWeather} onAddFarmer={openAddFarmer} />;
+        return (
+          <DashboardPage
+            farms={farms}
+            farmers={farmers}
+            dbSoilTests={dbSoilTests}
+            dbSystemActivity={dbSystemActivity}
+            liveWeather={liveWeather}
+            onAddFarmer={openAddFarmer}
+            latestSessionCycle={latestSessionCycle}
+          />
+        );
 
       case 'farms':
         return (
@@ -681,9 +767,7 @@ export const AdminDashboard = () => {
           <FarmersTab
             farms={farms} farmers={farmers}
             searchQuery={searchQuery}
-            isAddFarmerOpen={isAddFarmerOpen} setIsAddFarmerOpen={setIsAddFarmerOpen}
-            newFarmer={newFarmer} setNewFarmer={setNewFarmer}
-            isAddingFarmer={isAddingFarmer} handleAddFarmerSubmit={handleAddFarmerSubmit}
+            onAddFarmer={openAddFarmer}
             isAddFarmOpen={isAddFarmOpen} setIsAddFarmOpen={setIsAddFarmOpen}
             selectedFarmerId={selectedFarmerId} setSelectedFarmerId={setSelectedFarmerId}
             newFarm={newFarm} setNewFarm={setNewFarm}
@@ -692,10 +776,8 @@ export const AdminDashboard = () => {
             onDeleteFarmer={onDeleteFarmerClick}
             initialViewFarmerId={pendingFarmerModal?.farmer_id || pendingFarmerModal?.id || null}
             onInitialViewConsumed={() => setPendingFarmerModal(null)}
-            addFarmerError={addFarmerError}
             addFarmError={addFarmError}
             onAddFarmOpenChange={(open) => { if (!open) setAddFarmError(''); }}
-            onAddFarmerOpenChange={(open) => { if (!open) setAddFarmerError(''); }}
           />
         );
 
@@ -795,17 +877,6 @@ export const AdminDashboard = () => {
               <div className="space-y-2">
                 <Label>Farm Location</Label>
                 <Input placeholder="e.g. Cagayan de Oro" value={newFarmer.farmLocation} onChange={e => setNewFarmer({ ...newFarmer, farmLocation: e.target.value })} />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Latitude (GPS) 🗺</Label>
-                <Input type="number" step="any" placeholder="e.g. 8.4870" value={newFarmer.latitude} onChange={e => setNewFarmer({ ...newFarmer, latitude: e.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label>Longitude (GPS) 🗺</Label>
-                <Input type="number" step="any" placeholder="e.g. 124.6470" value={newFarmer.longitude} onChange={e => setNewFarmer({ ...newFarmer, longitude: e.target.value })} />
               </div>
             </div>
 

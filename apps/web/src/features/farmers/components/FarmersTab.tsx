@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
 import { Download, Users, Edit2, Trash2, User, Phone, Tractor, MapPin, Loader2 } from 'lucide-react';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -426,12 +425,8 @@ export interface FarmersTabProps {
   farms: any[];
   farmers: any[];
   searchQuery?: string;
-  isAddFarmerOpen: boolean;
-  setIsAddFarmerOpen: (v: boolean) => void;
-  newFarmer: any;
-  setNewFarmer: (v: any) => void;
-  isAddingFarmer: boolean;
-  handleAddFarmerSubmit: () => void;
+  /** Opens the global "Add New Farmer" dialog (AdminDashboard). */
+  onAddFarmer: () => void;
   isAddFarmOpen: boolean;
   setIsAddFarmOpen: (v: boolean) => void;
   selectedFarmerId: string | null;
@@ -444,103 +439,22 @@ export interface FarmersTabProps {
   onDeleteFarmer: (farmer: any) => void;
   initialViewFarmerId?: string | null;
   onInitialViewConsumed?: () => void;
-  addFarmerError?: string;
   addFarmError?: string;
   onAddFarmOpenChange?: (open: boolean) => void;
-  onAddFarmerOpenChange?: (open: boolean) => void;
 }
 
 export const FarmersTab = ({
-  farms, farmers, searchQuery = '',
-  isAddFarmerOpen, setIsAddFarmerOpen,
-  newFarmer, setNewFarmer, isAddingFarmer, handleAddFarmerSubmit,
+  farms, farmers, searchQuery = '', onAddFarmer,
   isAddFarmOpen, setIsAddFarmOpen,
   selectedFarmerId, setSelectedFarmerId,
   newFarm, setNewFarm, isAddingFarm, handleAddFarmSubmit,
   onEditFarmer, onDeleteFarmer,
   initialViewFarmerId, onInitialViewConsumed,
-  addFarmerError = '',
   addFarmError = '',
   onAddFarmOpenChange,
-  onAddFarmerOpenChange,
 }: FarmersTabProps) => (
   <div>
-    {/* Register New Farmer Dialog */}
-    <Dialog open={isAddFarmerOpen} onOpenChange={(open) => { setIsAddFarmerOpen(open); onAddFarmerOpenChange?.(open); }}>
-      <DialogContent
-        className="flex max-h-[90dvh] w-[calc(100vw-1.25rem)] max-w-lg flex-col gap-0 overflow-hidden border bg-background p-0 shadow-lg sm:w-full
-          left-[50%] top-[max(0.5rem,env(safe-area-inset-top,0px))] z-50 -translate-x-1/2 translate-y-0
-          sm:top-[50%] sm:-translate-y-1/2"
-      >
-        <div className="shrink-0 border-b px-6 pb-3 pt-6 pr-14">
-          <DialogHeader className="text-left">
-            <DialogTitle>Register New Farmer</DialogTitle>
-          </DialogHeader>
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-auto overscroll-contain px-6 py-3 [-webkit-overflow-scrolling:touch]">
-        <div className="space-y-4 min-w-0">
-          {addFarmerError && (
-            <div style={{ background: '#fff5f5', border: '1.5px solid #fca5a5', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: '#b91c1c' }}>
-              {addFarmerError}
-            </div>
-          )}
-          <div className="space-y-2">
-            <Label>Username</Label>
-            <Input value={newFarmer.username} onChange={e => setNewFarmer({ ...newFarmer, username: e.target.value })} placeholder="Enter farmer's username" />
-          </div>
-          <div className="space-y-2">
-            <Label>Password</Label>
-            <Input type="password" value={newFarmer.password} onChange={e => setNewFarmer({ ...newFarmer, password: e.target.value })} placeholder="Set temporary password" />
-          </div>
-          <div className="space-y-2">
-            <Label>Phone</Label>
-            <Input value={newFarmer.contactInfo ?? ''} onChange={e => setNewFarmer({ ...newFarmer, contactInfo: e.target.value })} placeholder="Enter phone number" />
-          </div>
-          <div className="space-y-2">
-            <Label>Language Support</Label>
-            <Select value={newFarmer.language} onValueChange={val => setNewFarmer({ ...newFarmer, language: val })}>
-              <SelectTrigger><SelectValue placeholder="Select language" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="en">English (EN)</SelectItem>
-                <SelectItem value="tl">Tagalog (TL)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <Separator />
-          <p className="text-sm font-semibold text-muted-foreground pt-2">Farm Details (Optional)</p>
-          <div className="space-y-2">
-            <Label>Farm Name</Label>
-            <Input value={newFarmer.farm_name} onChange={e => setNewFarmer({ ...newFarmer, farm_name: e.target.value })} placeholder="Enter farm name" />
-          </div>
-          <div className="space-y-2">
-            <Label>Farm Size (Hectares)</Label>
-            <Input type="number" step="any" value={newFarmer.farm_measurement} onChange={e => setNewFarmer({ ...newFarmer, farm_measurement: e.target.value })} placeholder="Enter size in hectares" />
-          </div>
-          <div className="space-y-2">
-            <Label>Primary Soil Type</Label>
-            <Select value={newFarmer.soilType} onValueChange={val => setNewFarmer({ ...newFarmer, soilType: val })}>
-              <SelectTrigger><SelectValue placeholder="Select soil type" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="loam">Loam</SelectItem>
-                <SelectItem value="clay">Clay</SelectItem>
-                <SelectItem value="sandy">Sandy</SelectItem>
-                <SelectItem value="silt">Silt</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        </div>
-        <div className="shrink-0 border-t bg-background px-6 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setIsAddFarmerOpen(false)}>Cancel</Button>
-            <Button className="w-full sm:w-auto gap-2" onClick={handleAddFarmerSubmit} disabled={isAddingFarmer || !newFarmer.username || !newFarmer.password}>
-              {isAddingFarmer && <Loader2 className="h-4 w-4 animate-spin" />}
-              {isAddingFarmer ? 'Saving...' : 'Save Farmer'}
-            </Button>
-          </DialogFooter>
-        </div>
-      </DialogContent>
-    </Dialog>
+    {/* Add Farmer: use global dialog in AdminDashboard (includes GPS + full farm fields). */}
 
     {/* Add Farm Dialog */}
     <Dialog open={isAddFarmOpen} onOpenChange={(open) => { setIsAddFarmOpen(open); onAddFarmOpenChange?.(open); }}>
@@ -562,6 +476,14 @@ export const FarmersTab = ({
           <div className="space-y-2">
             <Label>Farm Name</Label>
             <Input value={newFarm.farm_name} onChange={e => setNewFarm({ ...newFarm, farm_name: e.target.value })} placeholder="Enter farm name" />
+          </div>
+          <div className="space-y-2">
+            <Label>Farm Location</Label>
+            <Input
+              value={newFarm.farm_location ?? ''}
+              onChange={e => setNewFarm({ ...newFarm, farm_location: e.target.value })}
+              placeholder="e.g. Cagayan de Oro, Region X"
+            />
           </div>
           <div className="space-y-2">
             <Label>Farm Size (Hectares)</Label>
@@ -597,7 +519,7 @@ export const FarmersTab = ({
       farms={farms}
       farmers={farmers}
       searchQuery={searchQuery}
-      onAddFarmer={() => setIsAddFarmerOpen(true)}
+      onAddFarmer={onAddFarmer}
       onAddFarm={(id: string) => { setSelectedFarmerId(id); setIsAddFarmOpen(true); }}
       onEditFarmer={onEditFarmer}
       onDeleteFarmer={onDeleteFarmer}

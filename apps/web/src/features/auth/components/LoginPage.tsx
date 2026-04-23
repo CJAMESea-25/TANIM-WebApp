@@ -19,16 +19,6 @@ const C = {
   label: '#4a5568',
 };
 
-// ─── Tractor SVG icon (matches the image) 
-const TractorIcon: React.FC<{ size?: number }> = ({ size = 48 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M3 11v-1a4 4 0 0 1 4-4h1l2-3h5v3h2a2 2 0 0 1 2 2v3" />
-    <circle cx="7" cy="15" r="3" />
-    <circle cx="17" cy="15" r="2" />
-    <path d="M10 15h4" />
-  </svg>
-);
-
 // ─── Eye icons 
 const EyeOpen = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -112,8 +102,14 @@ export const LoginPage: React.FC = () => {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           margin: '0 auto 12px',
           boxShadow: `0 4px 16px ${C.dark}44`,
+          padding: 8,
+          boxSizing: 'border-box',
         }}>
-          <TractorIcon size={36} />
+          <img
+            src="/tanim_logo.png"
+            alt="TANIM"
+            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+          />
         </div>
         <h1 style={{
           fontSize: '26px',

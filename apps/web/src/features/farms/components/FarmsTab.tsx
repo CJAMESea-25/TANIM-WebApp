@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, MapPin, TrendingUp, Edit2, Trash2, User, Leaf, Tractor, History, Download, Loader2 } from 'lucide-react';
+import { Plus, MapPin, TrendingUp, Edit2, Trash2, User, Leaf, Tractor, History, Download, Loader2, FlaskConical } from 'lucide-react';
+import { getSoilHealthTestsByFarmId } from '@/features/soil/services/soil.service';
 import { updateFarm, deleteFarm } from '@/features/farms/services/farmService';
 import {
   debugLogAllFarmingSessions,
@@ -50,7 +51,10 @@ function toNumOrNull(v: unknown): number | null {
  * Pad each column so values align in plain-text tools. Also enforce minimum widths so short
  * headers/values still reserve space when the file is opened in Excel (default column sizing).
  */
-function padCsvColumns(matrix: string[][]): string[][] {
+const CROP_HISTORY_CSV_MIN_WIDTHS = [22, 24, 18, 16, 14, 18, 18, 20, 22, 22, 12, 18, 16, 22];
+const SOIL_HEALTH_CSV_MIN_WIDTHS = [20, 18, 8, 8, 8, 10, 12, 12, 10];
+
+function padCsvColumns(matrix: string[][], minWidths: number[] = CROP_HISTORY_CSV_MIN_WIDTHS): string[][] {
   if (matrix.length === 0) return matrix;
   const colCount = matrix[0].length;
   const maxLen = new Array(colCount).fill(0);
@@ -60,8 +64,6 @@ function padCsvColumns(matrix: string[][]): string[][] {
       if (len > maxLen[c]) maxLen[c] = len;
     }
   }
-  // Minimum display width per column (chars), matched to header / typical values.
-  const minWidths = [22, 24, 18, 16, 14, 18, 18, 20, 22, 22, 12, 18, 16, 22];
   const extra = 18;
   const target = maxLen.map((m, c) => Math.max(m + extra, minWidths[c] ?? 16));
   return matrix.map((r) => r.map((cell, c) => (cell ?? '').padEnd(target[c], ' ')));
@@ -138,6 +140,42 @@ function buildCropHistoryCsv(
   return cropHistoryMatrixToCsv(padded);
 }
 
+function buildSoilHealthTestsCsv(
+  farmName: string,
+  tests: any[],
+  fmtDate: (iso?: string | null) => string,
+): string {
+  const headers = [
+    'Farm name',
+    'Test date',
+    'Nitrogen (N)',
+    'Phosphorus (P)',
+    'Potassium (K)',
+    'pH',
+    'Moisture %',
+    'Temp. (C)',
+    'Salinity (EC)',
+  ];
+  const rows: string[][] = [headers];
+  for (const t of tests) {
+    const d = t.cycle_start_at || t.created_at;
+    const moisture = t.moisture != null ? t.moisture : t.soil_moisture;
+    rows.push([
+      farmName,
+      d ? fmtDate(d) : '—',
+      t.nitrogen != null && t.nitrogen !== '' ? String(t.nitrogen) : '—',
+      t.phosphorus != null && t.phosphorus !== '' ? String(t.phosphorus) : '—',
+      t.potassium != null && t.potassium !== '' ? String(t.potassium) : '—',
+      t.ph != null ? String(t.ph) : t.pH != null ? String(t.pH) : '—',
+      moisture != null && moisture !== '' ? `${moisture}%` : '—',
+      t.temperature != null && t.temperature !== '' ? String(t.temperature) : '—',
+      t.salinity != null && t.salinity !== '' ? String(t.salinity) : '—',
+    ]);
+  }
+  const padded = padCsvColumns(rows, SOIL_HEALTH_CSV_MIN_WIDTHS);
+  return cropHistoryMatrixToCsv(padded);
+}
+
 
 // ─── FarmsTab (exported) ──────────────────────────────────────────────────────
 
@@ -205,6 +243,12 @@ export const FarmsTab = ({
     error: string;
   }>({ active: null, history: [], loading: false, error: '' });
 
+  const [soilHealthState, setSoilHealthState] = React.useState<{
+    rows: any[];
+    loading: boolean;
+    error: string;
+  }>({ rows: [], loading: false, error: '' });
+
   React.useEffect(() => {
     const farmId = viewingFarm?.farm_id || viewingFarm?.id;
     if (!farmId) {
@@ -235,6 +279,29 @@ export const FarmsTab = ({
           loading: false,
           error: message,
         });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [viewingFarm]);
+
+  React.useEffect(() => {
+    const farmId = viewingFarm?.farm_id || viewingFarm?.id;
+    if (!farmId) {
+      setSoilHealthState({ rows: [], loading: false, error: '' });
+      return;
+    }
+    let cancelled = false;
+    setSoilHealthState((s) => ({ ...s, loading: true, error: '' }));
+    getSoilHealthTestsByFarmId(String(farmId))
+      .then((rows) => {
+        if (cancelled) return;
+        setSoilHealthState({ rows, loading: false, error: '' });
+      })
+      .catch((e: unknown) => {
+        if (cancelled) return;
+        const message = e instanceof Error ? e.message : 'Failed to load soil health tests';
+        setSoilHealthState({ rows: [], loading: false, error: message });
       });
     return () => {
       cancelled = true;
@@ -798,6 +865,7 @@ export const FarmsTab = ({
                 : null;
             const farmerName = farmer ? `${farmer.first_name || ''} ${farmer.last_name || ''}`.trim() || farmer.username || farmer.name : 'Unknown Farmer';
             const farmDisplayName = viewingFarm.farm_name || viewingFarm.name || 'Unnamed Farm';
+            const { rows: soilHealthRows, loading: soilHealthLoading, error: soilHealthError } = soilHealthState;
 
             return (
               <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, width: '100%', flex: 1, minHeight: 0 }}>
@@ -874,6 +942,149 @@ export const FarmsTab = ({
                         </div>
                       </div>
                     </div>
+                  </div>
+
+                  {/* Soil health test history (soil_health_test table) */}
+                  <div style={{ minWidth: 0, width: '100%' }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 12,
+                        flexWrap: 'wrap',
+                        marginBottom: 12,
+                      }}
+                    >
+                      <h3
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 700,
+                          color: '#3a5a40',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em',
+                          margin: 0,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
+                        }}
+                      >
+                        <FlaskConical size={16} /> Soil health test history
+                      </h3>
+                      {soilHealthRows.length > 0 && !soilHealthLoading && !soilHealthError && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="shrink-0 border-[#d0d4c8] text-[#3a5a40] hover:bg-[#f0ede4]"
+                          onClick={() => {
+                            const csv = buildSoilHealthTestsCsv(
+                              farmDisplayName,
+                              soilHealthRows,
+                              fmtSessionDate,
+                            );
+                            const safeFarm = farmDisplayName
+                              .replace(/[^\w\-]+/g, '_')
+                              .replace(/_+/g, '_')
+                              .slice(0, 60) || 'farm';
+                            const stamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
+                            downloadTextFile(
+                              `soil-health-tests_${safeFarm}_${stamp}.csv`,
+                              `\uFEFF${csv}`,
+                              'text/csv;charset=utf-8;',
+                            );
+                          }}
+                        >
+                          <Download size={14} className="mr-1.5" />
+                          Export CSV
+                        </Button>
+                      )}
+                    </div>
+                    {soilHealthLoading ? (
+                      <div style={{ fontSize: 13, color: '#6a7a60', padding: 16 }}>Loading soil tests…</div>
+                    ) : soilHealthError ? (
+                      <div style={{ background: '#fff5f5', border: '1px solid #fca5a5', borderRadius: 12, padding: 12, fontSize: 12, color: '#b91c1c' }}>{soilHealthError}</div>
+                    ) : soilHealthRows.length === 0 ? (
+                      <div
+                        style={{
+                          background: '#fff',
+                          borderRadius: 12,
+                          padding: '20px',
+                          border: '1px solid #e0ddd4',
+                          textAlign: 'center',
+                          fontSize: 12,
+                          color: '#8a9880',
+                        }}
+                      >
+                        No soil health tests recorded in the database for this farm yet.
+                      </div>
+                    ) : (
+                      <div
+                        style={{
+                          background: '#fff',
+                          borderRadius: 12,
+                          border: '1px solid #e0ddd4',
+                          maxWidth: '100%',
+                          minWidth: 0,
+                          overflow: 'hidden',
+                        }}
+                      >
+                        <div
+                          role="region"
+                          aria-label="Soil health test history, scroll horizontally for all columns"
+                          style={{
+                            maxHeight: 260,
+                            width: '100%',
+                            minWidth: 0,
+                            overflowX: 'auto',
+                            overflowY: 'auto',
+                            WebkitOverflowScrolling: 'touch',
+                            scrollbarGutter: 'stable',
+                          }}
+                        >
+                          <table
+                            style={{
+                              width: 'max-content',
+                              minWidth: '100%',
+                              borderCollapse: 'collapse',
+                              fontSize: 11,
+                            }}
+                          >
+                            <thead>
+                              <tr style={{ background: '#f5f2ea', color: '#4a5a40', textAlign: 'left' }}>
+                                <th style={{ padding: '8px 10px', fontWeight: 700, whiteSpace: 'nowrap' }}>Test date</th>
+                                <th style={{ padding: '8px 10px', fontWeight: 700, whiteSpace: 'nowrap' }} title="Nitrogen">N</th>
+                                <th style={{ padding: '8px 10px', fontWeight: 700, whiteSpace: 'nowrap' }} title="Phosphorus">P</th>
+                                <th style={{ padding: '8px 10px', fontWeight: 700, whiteSpace: 'nowrap' }} title="Potassium">K</th>
+                                <th style={{ padding: '8px 10px', fontWeight: 700, whiteSpace: 'nowrap' }}>pH</th>
+                                <th style={{ padding: '8px 10px', fontWeight: 700, whiteSpace: 'nowrap' }}>Moisture</th>
+                                <th style={{ padding: '8px 10px', fontWeight: 700, whiteSpace: 'nowrap' }}>Temp. (°C)</th>
+                                <th style={{ padding: '8px 10px', fontWeight: 700, whiteSpace: 'nowrap' }}>Sal. (EC)</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {soilHealthRows.map((t: any, idx: number) => {
+                                const d = t.cycle_start_at || t.created_at;
+                                const rowKey = t.id ?? t.test_id ?? `soil-row-${idx}`;
+                                const moisture = t.moisture != null ? t.moisture : t.soil_moisture;
+                                return (
+                                  <tr key={rowKey} style={{ borderTop: '1px solid #eee' }}>
+                                    <td style={{ padding: '8px 10px', color: '#2e3a28', whiteSpace: 'nowrap' }}>{d ? fmtSessionDate(d) : '—'}</td>
+                                    <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>{t.nitrogen != null && t.nitrogen !== '' ? t.nitrogen : '—'}</td>
+                                    <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>{t.phosphorus != null && t.phosphorus !== '' ? t.phosphorus : '—'}</td>
+                                    <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>{t.potassium != null && t.potassium !== '' ? t.potassium : '—'}</td>
+                                    <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>{t.ph != null ? t.ph : t.pH != null ? t.pH : '—'}</td>
+                                    <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>{moisture != null && moisture !== '' ? `${moisture}%` : '—'}</td>
+                                    <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>{t.temperature != null && t.temperature !== '' ? t.temperature : '—'}</td>
+                                    <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>{t.salinity != null && t.salinity !== '' ? t.salinity : '—'}</td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Crop history: session timeline + soil snapshot per row */}

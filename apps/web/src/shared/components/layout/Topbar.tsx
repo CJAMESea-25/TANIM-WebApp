@@ -173,7 +173,6 @@ export const Topbar: React.FC<TopbarProps> = ({
                       <div>
                         <div style={{ fontSize: 12, fontWeight: 600, color: '#3a5a40' }}>{notif.model}</div>
                         <div style={{ fontSize: 13, color: '#2e3a28', marginTop: 2, lineHeight: 1.3 }}>{notif.label}</div>
-                        <div style={{ fontSize: 10, color: '#9aaa8a', marginTop: 4 }}>{notif.date.toLocaleString()}</div>
                       </div>
                     </div>
                   </div>

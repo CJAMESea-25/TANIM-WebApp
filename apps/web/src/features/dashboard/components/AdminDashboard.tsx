@@ -41,7 +41,7 @@ import { Line } from 'react-chartjs-2';
 import {
   Users, Tractor, Download, Plus, Thermometer, Droplets,
   Database, AlertCircle, MapPin, ShieldCheck,
-  UserCircle, TrendingUp, BarChart3, Loader2
+  UserCircle, TrendingUp, BarChart3, Loader2, Eye, EyeOff
 } from 'lucide-react';
 
 ChartJS.register(CategoryScale, LinearScale, LineElement, PointElement, BarElement, ArcElement, Title, Tooltip, Legend);
@@ -493,6 +493,9 @@ export const AdminDashboard = () => {
   const [isAddingFarm, setIsAddingFarm] = React.useState(false);
   const [addFarmError, setAddFarmError] = React.useState('');
 
+  const [showAddPassword, setShowAddPassword] = React.useState(false);
+  const [showEditPassword, setShowEditPassword] = React.useState(false);
+
   // ── Edit/Delete Farmer state ──
   const [isEditFarmerOpen, setIsEditFarmerOpen] = React.useState(false);
   const [editingFarmer, setEditingFarmer] = React.useState<any>(null);
@@ -812,7 +815,12 @@ export const AdminDashboard = () => {
               </div>
               <div className="space-y-2">
                 <Label>Password <span style={{ color: '#e53935', marginLeft: 2 }}>*</span></Label>
-                <Input type="password" placeholder="••••••••" value={newFarmer.password} onChange={e => setNewFarmer({ ...newFarmer, password: e.target.value })} />
+                <div className="relative">
+                  <Input type={showAddPassword ? "text" : "password"} placeholder="••••••••" value={newFarmer.password} onChange={e => setNewFarmer({ ...newFarmer, password: e.target.value })} />
+                  <button type="button" onClick={() => setShowAddPassword(!showAddPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8a9880] hover:text-[#4a5a40]">
+                    {showAddPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -889,7 +897,12 @@ export const AdminDashboard = () => {
               </div>
               <div className="space-y-2">
                 <Label>Password <span style={{ fontSize: 10, color: '#9aaa8a', fontWeight: 400 }}>(leave blank to keep current)</span></Label>
-                <Input type="password" placeholder="(unchanged)" value={editingFarmer.password} onChange={e => setEditingFarmer({ ...editingFarmer, password: e.target.value })} />
+                <div className="relative">
+                  <Input type={showEditPassword ? "text" : "password"} placeholder="(unchanged)" value={editingFarmer.password} onChange={e => setEditingFarmer({ ...editingFarmer, password: e.target.value })} />
+                  <button type="button" onClick={() => setShowEditPassword(!showEditPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8a9880] hover:text-[#4a5a40]">
+                    {showEditPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
               </div>
             </div>
             </div>
